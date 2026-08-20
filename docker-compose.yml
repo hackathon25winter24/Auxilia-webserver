@@ -1,0 +1,45 @@
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: auxilia_web
+      MARIADB_USER: auxilia_user
+      MARIADB_PASSWORD: ${NS_MARIADB_PASSWORD:-auxilia_password}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root_password}
+    command:
+      - --innodb-buffer-pool-size=64M
+      - --innodb-log-buffer-size=8M
+      - --max-connections=20
+      - --performance-schema=OFF
+      - --table-open-cache=200
+      - --tmp-table-size=8M
+      - --max-heap-table-size=8M
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: 8081
+      NS_MARIADB_HOSTNAME: db
+      NS_MARIADB_PORT: 3306
+      NS_MARIADB_USER: auxilia_user
+      NS_MARIADB_PASSWORD: ${NS_MARIADB_PASSWORD:-auxilia_password}
+      NS_MARIADB_DATABASE: auxilia_web
+      DB_MAX_OPEN_CONNS: 5
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mariadb-data:

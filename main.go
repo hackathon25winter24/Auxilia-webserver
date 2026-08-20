@@ -5,17 +5,22 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"auxilia-webserver/internal/game"
+	"auxilia-webserver/internal/store"
+	gormMysql "gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-type guest struct {
+type guestResponse struct {
 	ID        string   `json:"id"`
 	Name      string   `json:"name"`
 	Token     string   `json:"token,omitempty"`
@@ -23,19 +28,22 @@ type guest struct {
 	MatchID   string   `json:"matchId,omitempty"`
 	Queued    bool     `json:"queued"`
 }
-type service struct {
-	mu       sync.RWMutex
-	guests   map[string]*guest
-	tokens   map[string]string
-	matches  map[string]*game.State
-	queue    []string
-	commands map[string]bool
-}
+type service struct{ store *store.Store }
 
 func main() {
-	s := &service{guests: map[string]*guest{}, tokens: map[string]string{}, matches: map[string]*game.State{}, commands: map[string]bool{}}
+	db, err := openDatabase()
+	if err != nil {
+		log.Fatalf("database startup failed: %v", err)
+	}
+	repository, err := store.New(db)
+	if err != nil {
+		log.Fatalf("migration failed: %v", err)
+	}
+	s := &service{store: repository}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { write(w, 200, map[string]string{"status": "ok"}) })
+	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
+		write(w, 200, map[string]string{"status": "ok", "database": "mariadb"})
+	})
 	mux.HandleFunc("GET /api/characters", characters)
 	mux.HandleFunc("POST /api/guests", s.join)
 	mux.HandleFunc("GET /api/me", s.auth(s.me))
@@ -46,13 +54,46 @@ func main() {
 	mux.HandleFunc("POST /api/matches/{id}/move", s.auth(s.move))
 	mux.HandleFunc("POST /api/matches/{id}/attack", s.auth(s.attack))
 	mux.HandleFunc("POST /api/matches/{id}/end-turn", s.auth(s.endTurn))
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
-	log.Printf("Auxilia webserver listening on http://localhost:%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, cors(mux)))
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for now := range ticker.C {
+			if err := repository.Cleanup(now); err != nil {
+				log.Printf("cleanup failed: %v", err)
+			}
+		}
+	}()
+	appPort := env("PORT", "8081")
+	log.Printf("Auxilia webserver listening on :%s", appPort)
+	log.Fatal(http.ListenAndServe(":"+appPort, cors(mux)))
 }
+
+func openDatabase() (*gorm.DB, error) {
+	user := env("NS_MARIADB_USER", "auxilia_user")
+	password := env("NS_MARIADB_PASSWORD", "auxilia_password")
+	host := env("NS_MARIADB_HOSTNAME", "127.0.0.1")
+	port := env("NS_MARIADB_PORT", "3306")
+	database := env("NS_MARIADB_DATABASE", "auxilia_web")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=UTC", user, password, host, port, database)
+	db, err := gorm.Open(gormMysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), TranslateError: true})
+	if err != nil {
+		return nil, err
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	maxOpen := envInt("DB_MAX_OPEN_CONNS", 5)
+	sqlDB.SetMaxOpenConns(maxOpen)
+	sqlDB.SetMaxIdleConns(min(maxOpen, 2))
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	if err := sqlDB.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
 func characters(w http.ResponseWriter, r *http.Request) { write(w, 200, game.Definitions) }
 func (s *service) join(w http.ResponseWriter, r *http.Request) {
 	var in struct {
@@ -66,21 +107,25 @@ func (s *service) join(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "名前は1〜20文字で入力してください")
 		return
 	}
-	g := &guest{ID: id("guest"), Name: in.Name, Token: id("token"), Selection: []string{}}
-	s.mu.Lock()
-	s.guests[g.ID] = g
-	s.tokens[g.Token] = g.ID
-	s.mu.Unlock()
-	write(w, 201, g)
+	token := id("token")
+	g, err := s.store.CreateGuest(id("guest"), in.Name, token)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	response := guestDTO(g)
+	response.Token = token
+	write(w, 201, response)
 }
-func (s *service) me(w http.ResponseWriter, r *http.Request, g *guest) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	copy := *g
-	copy.Token = ""
-	write(w, 200, copy)
+func (s *service) me(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	latest, err := s.store.GuestByID(g.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	write(w, 200, guestDTO(latest))
 }
-func (s *service) selection(w http.ResponseWriter, r *http.Request, g *guest) {
+func (s *service) selection(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var in struct {
 		CharacterIDs []string `json:"characterIds"`
 	}
@@ -97,140 +142,101 @@ func (s *service) selection(w http.ResponseWriter, r *http.Request, g *guest) {
 			return
 		}
 	}
-	s.mu.Lock()
-	if g.Queued || g.MatchID != "" {
-		s.mu.Unlock()
-		problem(w, 409, "マッチング中は変更できません")
+	updated, err := s.store.SetSelection(g.ID, in.CharacterIDs)
+	if err != nil {
+		problem(w, 409, err.Error())
 		return
 	}
-	g.Selection = append([]string(nil), in.CharacterIDs...)
-	s.mu.Unlock()
-	write(w, 200, g)
+	write(w, 200, guestDTO(updated))
 }
-func (s *service) matchmaking(w http.ResponseWriter, r *http.Request, g *guest) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if g.MatchID != "" {
-		write(w, 200, g)
+func (s *service) matchmaking(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	updated, err := s.store.EnqueueAndMatch(g.ID, id("match"))
+	if err != nil {
+		problem(w, 409, err.Error())
 		return
 	}
-	if !g.Queued {
-		if len(g.Selection) != 3 {
-			problem(w, 400, "キャラクターを3体選択してください")
-			return
-		}
-		s.queue = append(s.queue, g.ID)
-		g.Queued = true
-	}
-	if len(s.queue) >= 2 {
-		a, b := s.guests[s.queue[0]], s.guests[s.queue[1]]
-		s.queue = s.queue[2:]
-		mid := id("match")
-		st := game.NewState(mid, [2]game.Player{{ID: a.ID, Name: a.Name}, {ID: b.ID, Name: b.Name}}, [2][]string{a.Selection, b.Selection})
-		s.matches[mid] = st
-		a.MatchID = mid
-		b.MatchID = mid
-		a.Queued = false
-		b.Queued = false
-	}
-	write(w, 200, g)
+	write(w, 200, guestDTO(updated))
 }
-func (s *service) cancel(w http.ResponseWriter, r *http.Request, g *guest) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if g.MatchID != "" {
-		problem(w, 409, "開始済みの試合は解除できません")
+func (s *service) cancel(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	updated, err := s.store.CancelQueue(g.ID)
+	if err != nil {
+		problem(w, 409, err.Error())
 		return
 	}
-	next := s.queue[:0]
-	for _, v := range s.queue {
-		if v != g.ID {
-			next = append(next, v)
-		}
-	}
-	s.queue = next
-	g.Queued = false
-	write(w, 200, g)
+	write(w, 200, guestDTO(updated))
 }
-func (s *service) matchState(w http.ResponseWriter, r *http.Request, g *guest) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	st := s.matches[r.PathValue("id")]
-	if st == nil || g.MatchID != st.MatchID {
-		problem(w, 404, "試合が見つかりません")
+func (s *service) matchState(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	state, err := s.store.LoadState(r.PathValue("id"), g.ID)
+	if err != nil {
+		storeError(w, err)
 		return
 	}
-	st.ExpireTurn(time.Now())
-	write(w, 200, st)
+	write(w, 200, state)
 }
-func (s *service) move(w http.ResponseWriter, r *http.Request, g *guest) {
+func (s *service) move(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
 		return
 	}
 	s.apply(w, r, g, c, func(st *game.State) error { return st.ApplyMove(g.ID, c) })
 }
-func (s *service) attack(w http.ResponseWriter, r *http.Request, g *guest) {
+func (s *service) attack(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
 		return
 	}
 	s.apply(w, r, g, c, func(st *game.State) error { return st.ApplyAttack(g.ID, c) })
 }
-func (s *service) endTurn(w http.ResponseWriter, r *http.Request, g *guest) {
+func (s *service) endTurn(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
 		return
 	}
 	s.apply(w, r, g, c, func(st *game.State) error { return st.EndTurn(g.ID, c.ExpectedRevision) })
 }
-func (s *service) apply(w http.ResponseWriter, r *http.Request, g *guest, c game.Command, fn func(*game.State) error) {
+func (s *service) apply(w http.ResponseWriter, r *http.Request, g *store.Guest, c game.Command, fn func(*game.State) error) {
 	if c.ID == "" {
 		problem(w, 400, "commandIdが必要です")
 		return
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	st := s.matches[r.PathValue("id")]
-	if st == nil || g.MatchID != st.MatchID {
-		problem(w, 404, "試合が見つかりません")
-		return
-	}
-	st.ExpireTurn(time.Now())
-	key := st.MatchID + ":" + g.ID + ":" + c.ID
-	if s.commands[key] {
-		write(w, 200, st)
-		return
-	}
-	if err := fn(st); err != nil {
+	state, err := s.store.Apply(r.PathValue("id"), g.ID, c.ID, fn)
+	if err != nil {
 		code := 422
 		if errors.Is(err, game.ErrStaleRevision) {
 			code = 409
 		}
+		if errors.Is(err, store.ErrNotFound) {
+			code = 404
+		}
 		problem(w, code, err.Error())
 		return
 	}
-	s.commands[key] = true
-	write(w, 200, st)
+	write(w, 200, state)
 }
-func (s *service) auth(next func(http.ResponseWriter, *http.Request, *guest)) http.HandlerFunc {
+func (s *service) auth(next func(http.ResponseWriter, *http.Request, *store.Guest)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		s.mu.RLock()
-		g := s.guests[s.tokens[token]]
-		s.mu.RUnlock()
-		if g == nil {
+		if token == "" {
+			problem(w, 401, "セッションが無効です")
+			return
+		}
+		g, err := s.store.GuestByToken(token)
+		if err != nil {
 			problem(w, 401, "セッションが無効です")
 			return
 		}
 		next(w, r, g)
 	}
 }
+
+func guestDTO(g *store.Guest) guestResponse {
+	return guestResponse{ID: g.ID, Name: g.Name, Selection: g.Selection(), MatchID: g.MatchID, Queued: g.Queued}
+}
 func decode(w http.ResponseWriter, r *http.Request, v any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
-	if err := d.Decode(v); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(v); err != nil {
 		problem(w, 400, "リクエスト形式が不正です")
 		return err
 	}
@@ -244,10 +250,21 @@ func write(w http.ResponseWriter, status int, v any) {
 func problem(w http.ResponseWriter, status int, message string) {
 	write(w, status, map[string]string{"error": message})
 }
+func serverError(w http.ResponseWriter, err error) {
+	log.Printf("server error: %v", err)
+	problem(w, 500, "サーバー処理に失敗しました")
+}
+func storeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrNotFound) {
+		problem(w, 404, "データが見つかりません")
+		return
+	}
+	serverError(w, err)
+}
 func id(prefix string) string {
-	b := make([]byte, 12)
-	_, _ = rand.Read(b)
-	return prefix + "-" + hex.EncodeToString(b)
+	bytes := make([]byte, 12)
+	_, _ = rand.Read(bytes)
+	return prefix + "-" + hex.EncodeToString(bytes)
 }
 func hasDuplicates(values []string) bool {
 	seen := make(map[string]bool, len(values))
@@ -259,10 +276,29 @@ func hasDuplicates(values []string) bool {
 	}
 	return false
 }
+func env(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+func envInt(key string, fallback int) int {
+	value, err := strconv.Atoi(os.Getenv(key))
+	if err != nil || value < 1 {
+		return fallback
+	}
+	return value
+}
 func cors(next http.Handler) http.Handler {
+	allowed := map[string]bool{"http://localhost:3000": true, "http://localhost:5173": true, "http://127.0.0.1:3000": true}
+	for _, origin := range strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			allowed[origin] = true
+		}
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin == "http://localhost:3000" || origin == "http://localhost:5173" || origin == "http://127.0.0.1:3000" {
+		if allowed[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 		}
