@@ -5,6 +5,35 @@ import "testing"
 func fixture() *State {
 	return NewState("m1", [2]Player{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}}, [2][]string{{"zina", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
 }
+
+func TestPendingMatchStartsAfterBothPlayersAreReady(t *testing.T) {
+	s := NewPendingState("m1", [2]Player{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}}, [2][]string{{"zina", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	if s.Started {
+		t.Fatal("pending match started before either player was ready")
+	}
+	if err := s.Ready("a"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Started || len(s.ReadyPlayerIDs) != 1 {
+		t.Fatalf("started=%v ready=%v", s.Started, s.ReadyPlayerIDs)
+	}
+	if err := s.Ready("b"); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Started || s.TurnDeadline.IsZero() {
+		t.Fatalf("started=%v deadline=%v", s.Started, s.TurnDeadline)
+	}
+}
+
+func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
+	s := fixture()
+	want := []Position{{0, 0}, {1, 2}, {0, 4}, {6, 3}, {7, 0}, {7, 4}}
+	for i, position := range want {
+		if s.Characters[i].Position != position {
+			t.Fatalf("character %d position=%v want=%v", i, s.Characters[i].Position, position)
+		}
+	}
+}
 func TestRejectsOpponentTurn(t *testing.T) {
 	s := fixture()
 	err := s.ApplyMove("b", Command{ExpectedRevision: s.Revision, CharacterID: "p2-c1", Target: Position{6, 1}})
@@ -21,8 +50,8 @@ func TestRejectsOutOfRangeMove(t *testing.T) {
 }
 func TestServerCalculatesDamage(t *testing.T) {
 	s := fixture()
-	s.Characters[3].Position = Position{3, 1}
-	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 1}})
+	s.Characters[3].Position = Position{2, 1}
+	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{2, 1}})
 	if err != nil {
 		t.Fatal(err)
 	}

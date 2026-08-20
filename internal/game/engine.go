@@ -68,18 +68,21 @@ type Event struct {
 	Text string `json:"text"`
 }
 type State struct {
-	MatchID      string      `json:"matchId"`
-	Revision     uint64      `json:"revision"`
-	Players      [2]Player   `json:"players"`
-	Bases        [2]Base     `json:"bases"`
-	Characters   []Character `json:"characters"`
-	TurnPlayerID string      `json:"turnPlayerId"`
-	Turn         int         `json:"turn"`
-	TurnDeadline time.Time   `json:"turnDeadline"`
-	WinnerID     string      `json:"winnerId,omitempty"`
-	Finished     bool        `json:"finished"`
-	LastEvent    Event       `json:"lastEvent"`
-	Events       []Event     `json:"events"`
+	MatchID        string      `json:"matchId"`
+	Revision       uint64      `json:"revision"`
+	Started        bool        `json:"started"`
+	ReadyPlayerIDs []string    `json:"readyPlayerIds"`
+	Players        [2]Player   `json:"players"`
+	Bases          [2]Base     `json:"bases"`
+	Characters     []Character `json:"characters"`
+	TurnPlayerID   string      `json:"turnPlayerId"`
+	Turn           int         `json:"turn"`
+	TurnDeadline   time.Time   `json:"turnDeadline"`
+	ServerTime     time.Time   `json:"serverTime,omitempty"`
+	WinnerID       string      `json:"winnerId,omitempty"`
+	Finished       bool        `json:"finished"`
+	LastEvent      Event       `json:"lastEvent"`
+	Events         []Event     `json:"events"`
 }
 type Command struct {
 	ID               string   `json:"commandId"`
@@ -108,10 +111,24 @@ var Definitions = []CharacterDefinition{
 }
 
 func NewState(id string, players [2]Player, selections [2][]string) *State {
-	s := &State{MatchID: id, Revision: 1, Players: players, TurnPlayerID: players[0].ID, Turn: 1, TurnDeadline: time.Now().Add(TurnDuration), LastEvent: Event{Type: "MATCH_STARTED", Text: "対戦開始"}}
+	return newState(id, players, selections, true)
+}
+
+func NewPendingState(id string, players [2]Player, selections [2][]string) *State {
+	return newState(id, players, selections, false)
+}
+
+func newState(id string, players [2]Player, selections [2][]string, started bool) *State {
+	lastEvent := Event{Type: "MATCH_FOUND", Text: "対戦相手が見つかりました"}
+	var deadline time.Time
+	if started {
+		lastEvent = Event{Type: "MATCH_STARTED", Text: "対戦開始"}
+		deadline = time.Now().Add(TurnDuration)
+	}
+	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: players[0].ID, Turn: 1, TurnDeadline: deadline, LastEvent: lastEvent}
 	s.Players[0].Cost, s.Players[1].Cost = MaxCost, MaxCost
 	s.EnsureBases()
-	starts := [2][]Position{{{0, 1}, {0, 2}, {0, 3}}, {{7, 1}, {7, 2}, {7, 3}}}
+	starts := [2][]Position{{{0, 0}, {1, 2}, {0, 4}}, {{6, 3}, {7, 0}, {7, 4}}}
 	for side := range 2 {
 		for i, defID := range selections[side] {
 			if i >= 3 {
@@ -124,6 +141,30 @@ func NewState(id string, players [2]Player, selections [2][]string) *State {
 	}
 	s.record(s.LastEvent)
 	return s
+}
+
+func (s *State) Ready(playerID string) error {
+	if s.Started {
+		return nil
+	}
+	if playerID != s.Players[0].ID && playerID != s.Players[1].ID {
+		return ErrInvalidAction
+	}
+	for _, id := range s.ReadyPlayerIDs {
+		if id == playerID {
+			return nil
+		}
+	}
+	s.ReadyPlayerIDs = append(s.ReadyPlayerIDs, playerID)
+	s.Revision++
+	s.LastEvent = Event{Type: "PLAYER_READY", Text: "相手を待っています"}
+	if len(s.ReadyPlayerIDs) == 2 {
+		s.Started = true
+		s.TurnDeadline = time.Now().Add(TurnDuration)
+		s.LastEvent = Event{Type: "MATCH_STARTED", Text: "対戦開始"}
+		s.Events = append(s.Events, s.LastEvent)
+	}
+	return nil
 }
 func (s *State) EnsureBases() {
 	positions := [2]Position{{0, 2}, {7, 2}}
@@ -202,7 +243,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	return nil
 }
 func (s *State) EndTurn(playerID string, expected uint64) error {
-	if s.Finished {
+	if !s.Started || s.Finished {
 		return ErrInvalidAction
 	}
 	if s.Revision != expected {
@@ -215,7 +256,7 @@ func (s *State) EndTurn(playerID string, expected uint64) error {
 	return nil
 }
 func (s *State) Surrender(playerID string, expected uint64) error {
-	if s.Finished {
+	if !s.Started || s.Finished {
 		return ErrInvalidAction
 	}
 	if s.Revision != expected {
@@ -237,7 +278,7 @@ func (s *State) Surrender(playerID string, expected uint64) error {
 	return nil
 }
 func (s *State) ExpireTurn(now time.Time) {
-	if !s.Finished && now.After(s.TurnDeadline) {
+	if s.Started && !s.Finished && now.After(s.TurnDeadline) {
 		s.advanceTurn("90秒経過によりターン交代")
 	}
 }
@@ -255,7 +296,7 @@ func (s *State) advanceTurn(reason string) {
 	s.commit("TURN_ENDED", reason)
 }
 func (s *State) validate(playerID string, c Command) error {
-	if s.Finished {
+	if !s.Started || s.Finished {
 		return ErrInvalidAction
 	}
 	if s.Revision != c.ExpectedRevision {

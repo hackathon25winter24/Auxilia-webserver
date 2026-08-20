@@ -124,7 +124,7 @@ func (s *Store) EnqueueAndMatch(id, newMatchID string) (*Guest, error) {
 		}
 		players := [2]game.Player{{ID: waiting[0].ID, Name: waiting[0].Name}, {ID: waiting[1].ID, Name: waiting[1].Name}}
 		selections := [2][]string{waiting[0].Selection(), waiting[1].Selection()}
-		state := game.NewState(newMatchID, players, selections)
+		state := game.NewPendingState(newMatchID, players, selections)
 		data, err := json.Marshal(state)
 		if err != nil {
 			return err
@@ -139,6 +139,34 @@ func (s *Store) EnqueueAndMatch(id, newMatchID string) (*Guest, error) {
 		return nil, err
 	}
 	return s.GuestByID(id)
+}
+
+func (s *Store) ReadyMatch(matchID, guestID string) (*game.State, error) {
+	var state *game.State
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var g Guest
+		if err := tx.First(&g, "id = ? AND match_id = ?", guestID, matchID).Error; err != nil {
+			return err
+		}
+		var m Match
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&m, "id = ?", matchID).Error; err != nil {
+			return err
+		}
+		parsed, err := decodeState(m.StateJSON)
+		if err != nil {
+			return err
+		}
+		if err := parsed.Ready(guestID); err != nil {
+			return err
+		}
+		if err := saveState(tx, &m, parsed); err != nil {
+			return err
+		}
+		parsed.ServerTime = time.Now()
+		state = parsed
+		return nil
+	})
+	return state, normalize(err)
 }
 
 func (s *Store) CancelQueue(id string) (*Guest, error) {
@@ -174,6 +202,7 @@ func (s *Store) LoadState(matchID, guestID string) (*game.State, error) {
 				return err
 			}
 		}
+		parsed.ServerTime = time.Now()
 		state = parsed
 		return nil
 	})
@@ -223,6 +252,7 @@ func (s *Store) Apply(matchID, guestID, commandID string, apply func(*game.State
 			return err
 		}
 		if count > 0 {
+			parsed.ServerTime = time.Now()
 			state = parsed
 			return nil
 		}
@@ -235,6 +265,7 @@ func (s *Store) Apply(matchID, guestID, commandID string, apply func(*game.State
 		if err := tx.Create(&ProcessedCommand{ID: key, MatchID: matchID}).Error; err != nil {
 			return err
 		}
+		parsed.ServerTime = time.Now()
 		state = parsed
 		return nil
 	})
