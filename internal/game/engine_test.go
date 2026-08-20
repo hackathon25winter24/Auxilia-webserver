@@ -38,3 +38,39 @@ func TestRejectsStaleRevision(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestServerDamagesBaseAndEndsMatch(t *testing.T) {
+	s := fixture()
+	s.Characters[0].Position = Position{6, 2}
+	s.Characters[4].Position = Position{6, 3}
+	s.Bases[1].HP = 20
+	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{7, 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Bases[1].HP != 0 {
+		t.Fatalf("base hp=%d", s.Bases[1].HP)
+	}
+	if !s.Finished || s.WinnerID != "a" {
+		t.Fatalf("finished=%v winner=%q", s.Finished, s.WinnerID)
+	}
+}
+
+func TestRejectsMovingOntoEnemyBase(t *testing.T) {
+	s := fixture()
+	s.Characters[0].Position = Position{6, 2}
+	err := s.ApplyMove("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", Target: Position{7, 2}})
+	if err != ErrInvalidAction {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestSurrenderAwardsWinToOpponent(t *testing.T) {
+	s := fixture()
+	if err := s.Surrender("a", s.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Finished || s.WinnerID != "b" {
+		t.Fatalf("finished=%v winner=%q", s.Finished, s.WinnerID)
+	}
+}

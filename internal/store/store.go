@@ -180,6 +180,27 @@ func (s *Store) LoadState(matchID, guestID string) (*game.State, error) {
 	return state, normalize(err)
 }
 
+func (s *Store) LeaveFinishedMatch(matchID, guestID string) (*Guest, error) {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var g Guest
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&g, "id = ? AND match_id = ?", guestID, matchID).Error; err != nil {
+			return err
+		}
+		var m Match
+		if err := tx.First(&m, "id = ? AND status = ?", matchID, "finished").Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return game.ErrInvalidAction
+			}
+			return err
+		}
+		return tx.Model(&g).Updates(map[string]any{"match_id": "", "queued": false, "queued_at": nil}).Error
+	})
+	if err != nil {
+		return nil, normalize(err)
+	}
+	return s.GuestByID(guestID)
+}
+
 func (s *Store) Apply(matchID, guestID, commandID string, apply func(*game.State) error) (*game.State, error) {
 	var state *game.State
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -236,6 +257,7 @@ func decodeState(raw string) (*game.State, error) {
 	if err := json.Unmarshal([]byte(raw), &state); err != nil {
 		return nil, err
 	}
+	state.EnsureBases()
 	return &state, nil
 }
 func saveState(tx *gorm.DB, m *Match, state *game.State) error {

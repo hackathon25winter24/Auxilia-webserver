@@ -51,9 +51,11 @@ func main() {
 	mux.HandleFunc("POST /api/matchmaking", s.auth(s.matchmaking))
 	mux.HandleFunc("DELETE /api/matchmaking", s.auth(s.cancel))
 	mux.HandleFunc("GET /api/matches/{id}", s.auth(s.matchState))
+	mux.HandleFunc("POST /api/matches/{id}/leave", s.auth(s.leaveMatch))
 	mux.HandleFunc("POST /api/matches/{id}/move", s.auth(s.move))
 	mux.HandleFunc("POST /api/matches/{id}/attack", s.auth(s.attack))
 	mux.HandleFunc("POST /api/matches/{id}/end-turn", s.auth(s.endTurn))
+	mux.HandleFunc("POST /api/matches/{id}/surrender", s.auth(s.surrender))
 	go func() {
 		ticker := time.NewTicker(time.Hour)
 		defer ticker.Stop()
@@ -173,6 +175,18 @@ func (s *service) matchState(w http.ResponseWriter, r *http.Request, g *store.Gu
 	}
 	write(w, 200, state)
 }
+func (s *service) leaveMatch(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	updated, err := s.store.LeaveFinishedMatch(r.PathValue("id"), g.ID)
+	if err != nil {
+		if errors.Is(err, game.ErrInvalidAction) {
+			problem(w, 409, "終了していない試合からは退出できません")
+			return
+		}
+		storeError(w, err)
+		return
+	}
+	write(w, 200, guestDTO(updated))
+}
 func (s *service) move(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
@@ -193,6 +207,13 @@ func (s *service) endTurn(w http.ResponseWriter, r *http.Request, g *store.Guest
 		return
 	}
 	s.apply(w, r, g, c, func(st *game.State) error { return st.EndTurn(g.ID, c.ExpectedRevision) })
+}
+func (s *service) surrender(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	var c game.Command
+	if decode(w, r, &c) != nil {
+		return
+	}
+	s.apply(w, r, g, c, func(st *game.State) error { return st.Surrender(g.ID, c.ExpectedRevision) })
 }
 func (s *service) apply(w http.ResponseWriter, r *http.Request, g *store.Guest, c game.Command, fn func(*game.State) error) {
 	if c.ID == "" {
