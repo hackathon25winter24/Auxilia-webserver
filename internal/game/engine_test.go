@@ -50,8 +50,8 @@ func TestRejectsOutOfRangeMove(t *testing.T) {
 }
 func TestServerCalculatesDamage(t *testing.T) {
 	s := fixture()
-	s.Characters[3].Position = Position{2, 1}
-	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{2, 1}})
+	s.Characters[3].Position = Position{3, 0}
+	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 0}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRejectsStaleRevision(t *testing.T) {
 
 func TestServerDamagesBaseAndEndsMatch(t *testing.T) {
 	s := fixture()
-	s.Characters[0].Position = Position{6, 2}
+	s.Characters[0].Position = Position{4, 2}
 	s.Characters[4].Position = Position{6, 3}
 	s.Bases[1].HP = 20
 	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{7, 2}})
@@ -101,5 +101,45 @@ func TestSurrenderAwardsWinToOpponent(t *testing.T) {
 	}
 	if !s.Finished || s.WinnerID != "b" {
 		t.Fatalf("finished=%v winner=%q", s.Finished, s.WinnerID)
+	}
+}
+
+func TestMineDealsDamageAndDisappears(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"berenice", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.Characters[0].Position = Position{2, 2}
+	if err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 2}}); err != nil {
+		t.Fatal(err)
+	}
+	s.advanceTurn("test")
+	s.Characters[3].Position = Position{4, 2}
+	before := s.Characters[3].HP
+	if err := s.ApplyMove("b", Command{ExpectedRevision: s.Revision, CharacterID: "p2-c1", Target: Position{3, 2}}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Characters[3].HP != before-100 || len(s.TileEffects) != 0 {
+		t.Fatalf("hp=%d tiles=%v", s.Characters[3].HP, s.TileEffects)
+	}
+}
+
+func TestPoisonDealsFortyDamageAtTurnEnd(t *testing.T) {
+	s := fixture()
+	s.Characters[0].Effects = []string{"毒"}
+	before := s.Characters[0].HP
+	s.advanceTurn("test")
+	if s.Characters[0].HP != before-40 {
+		t.Fatalf("hp=%d", s.Characters[0].HP)
+	}
+}
+
+func TestJudeReducesDamage(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"zina", "dana", "aoi"}, {"jude", "chiyo", "sophie"}})
+	s.Characters[0].Position = Position{0, 0}
+	s.Characters[3].Position = Position{3, 0}
+	before := s.Characters[3].HP
+	if err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 0}}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Characters[3].HP != before {
+		t.Fatalf("hp=%d", s.Characters[3].HP)
 	}
 }
