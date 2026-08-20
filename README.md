@@ -2,6 +2,27 @@
 
 Auxilia Battle Prototype向けの、MariaDB永続化・サーバー権威型ゲームサーバーです。
 
+## NeoShowcaseへのデプロイ
+
+`trap.show` へのデプロイでは、リポジトリ直下の `ns.yaml` に従って
+`Dockerfile` がビルドされます。`docker-compose.yml` はローカル起動用であり、
+NeoShowcaseの公開経路やMariaDBコンテナの起動には使用されません。
+
+NeoShowcase側でMariaDBリソースを接続し、次の環境変数がコンテナに渡ることを
+確認してください。
+
+```sh
+NS_MARIADB_HOSTNAME=...
+NS_MARIADB_PORT=3306
+NS_MARIADB_USER=...
+NS_MARIADB_PASSWORD=...
+NS_MARIADB_DATABASE=...
+ALLOWED_ORIGINS=https://hackathon25winter24.github.io
+```
+
+HTTP待受ポートにはNeoShowcaseから渡される `PORT` を使用します。未指定の場合は
+`8081` で起動します。
+
 ## 保存されるデータ
 
 - ゲストセッション（トークンはSHA-256ハッシュのみ保存）
