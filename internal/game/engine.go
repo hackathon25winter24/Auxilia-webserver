@@ -12,7 +12,7 @@ const (
 	Width        = 8
 	Height       = 5
 	MaxCost      = 50
-	MaxBaseHP    = 200
+	MaxBaseHP    = 300
 	TurnDuration = 90 * time.Second
 )
 
@@ -87,6 +87,7 @@ type State struct {
 	Bases          [2]Base      `json:"bases"`
 	Characters     []Character  `json:"characters"`
 	TileEffects    []TileEffect `json:"tileEffects"`
+	BlockedCells   []Position   `json:"blockedCells"`
 	TurnPlayerID   string       `json:"turnPlayerId"`
 	Turn           int          `json:"turn"`
 	TurnDeadline   time.Time    `json:"turnDeadline"`
@@ -102,6 +103,7 @@ type Command struct {
 	CharacterID      string   `json:"characterId"`
 	AttackIndex      int      `json:"attackIndex"`
 	Target           Position `json:"target"`
+	Direction        Position `json:"direction"`
 }
 
 func p(points ...Position) []Position { return points }
@@ -261,7 +263,13 @@ func (s *State) EnsureBases() {
 	for i := range s.Bases {
 		if s.Bases[i].MaxHP == 0 {
 			s.Bases[i] = Base{OwnerID: s.Players[i].ID, HP: MaxBaseHP, MaxHP: MaxBaseHP, Position: positions[i]}
+		} else if s.Bases[i].MaxHP != MaxBaseHP {
+			s.Bases[i].HP = clamp(s.Bases[i].HP+(MaxBaseHP-s.Bases[i].MaxHP), 0, MaxBaseHP)
+			s.Bases[i].MaxHP = MaxBaseHP
 		}
+	}
+	if len(s.BlockedCells) == 0 {
+		s.BlockedCells = []Position{{1, 1}, {2, 3}, {5, 1}, {6, 3}}
 	}
 }
 func Definition(id string) (CharacterDefinition, bool) {
@@ -294,7 +302,7 @@ func (s *State) ApplyMove(playerID string, c Command) error {
 		moveCost += 2
 	}
 	moveCost = max(0, moveCost)
-	if !onBoard(c.Target) || distance(s.Characters[i].Position, c.Target) > d.MoveRange || s.occupied(c.Target, c.CharacterID) || s.enemyBaseAt(playerID, c.Target) || s.cost(playerID) < moveCost {
+	if !onBoard(c.Target) || s.blocked(c.Target) || distance(s.Characters[i].Position, c.Target) > d.MoveRange || s.occupied(c.Target, c.CharacterID) || s.enemyBaseAt(playerID, c.Target) || s.cost(playerID) < moveCost {
 		return ErrInvalidAction
 	}
 	s.Characters[i].Position = c.Target
@@ -324,12 +332,12 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		attackCost += 2
 	}
 	attackCost = max(0, attackCost)
-	cells := s.attackCells(i, a)
+	cells := s.attackCells(i, a, c.Direction)
 	if s.cost(playerID) < attackCost || !containsPosition(cells, c.Target) {
 		return ErrInvalidAction
 	}
 	if a.Tile != "" {
-		if s.baseAt(c.Target) >= 0 || s.occupied(c.Target, "") {
+		if s.baseAt(c.Target) >= 0 || s.blocked(c.Target) || s.occupied(c.Target, "") {
 			return ErrInvalidAction
 		}
 		s.setTile(c.Target, a.Tile, playerID)
@@ -468,20 +476,24 @@ func (s *State) occupied(p Position, except string) bool {
 	}
 	return false
 }
-func (s *State) attackCells(actor int, a AttackDefinition) []Position {
-	direction := 1
-	if s.Characters[actor].OwnerID == s.Players[1].ID {
-		direction = -1
+func (s *State) attackCells(actor int, a AttackDefinition, facing Position) []Position {
+	if abs(facing.X)+abs(facing.Y) != 1 {
+		facing = Position{1, 0}
+		if s.Characters[actor].OwnerID == s.Players[1].ID {
+			facing = Position{-1, 0}
+		}
 	}
 	result := make([]Position, 0, len(a.Pattern))
 	for _, offset := range a.Pattern {
-		cell := Position{s.Characters[actor].Position.X + offset.X*direction, s.Characters[actor].Position.Y + offset.Y}
+		rotated := Position{offset.X*facing.X - offset.Y*facing.Y, offset.X*facing.Y + offset.Y*facing.X}
+		cell := Position{s.Characters[actor].Position.X + rotated.X, s.Characters[actor].Position.Y + rotated.Y}
 		if onBoard(cell) {
 			result = append(result, cell)
 		}
 	}
 	return result
 }
+func (s *State) blocked(position Position) bool { return containsPosition(s.BlockedCells, position) }
 func containsPosition(cells []Position, p Position) bool {
 	for _, cell := range cells {
 		if cell == p {

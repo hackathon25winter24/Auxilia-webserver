@@ -34,6 +34,33 @@ func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
 		}
 	}
 }
+func TestBoardAndBaseInitialState(t *testing.T) {
+	s := fixture()
+	want := []Position{{1, 1}, {2, 3}, {5, 1}, {6, 3}}
+	for _, position := range want {
+		if !s.blocked(position) {
+			t.Fatalf("missing blocked cell %v", position)
+		}
+	}
+	for _, base := range s.Bases {
+		if base.HP != 300 || base.MaxHP != 300 {
+			t.Fatalf("base=%+v", base)
+		}
+	}
+}
+
+func TestAttackPatternRotatesWithDirection(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"sophie", "dana", "aoi"}, {"jude", "chiyo", "zina"}})
+	s.Characters[0].Position = Position{3, 3}
+	a, _ := Definition("sophie")
+	tests := []struct{ direction, want Position }{{Position{-1, 0}, Position{2, 3}}, {Position{0, 1}, Position{3, 4}}, {Position{1, 0}, Position{4, 3}}, {Position{0, -1}, Position{3, 2}}}
+	for _, test := range tests {
+		cells := s.attackCells(0, a.Attacks[0], test.direction)
+		if len(cells) != 1 || cells[0] != test.want {
+			t.Fatalf("direction=%v cells=%v want=%v", test.direction, cells, test.want)
+		}
+	}
+}
 func TestRejectsOpponentTurn(t *testing.T) {
 	s := fixture()
 	err := s.ApplyMove("b", Command{ExpectedRevision: s.Revision, CharacterID: "p2-c1", Target: Position{6, 1}})
@@ -62,7 +89,7 @@ func TestServerCalculatesDamage(t *testing.T) {
 func TestRejectsStaleRevision(t *testing.T) {
 	s := fixture()
 	old := s.Revision
-	_ = s.ApplyMove("a", Command{ExpectedRevision: old, CharacterID: "p1-c1", Target: Position{1, 1}})
+	_ = s.ApplyMove("a", Command{ExpectedRevision: old, CharacterID: "p1-c1", Target: Position{1, 0}})
 	if err := s.ApplyMove("a", Command{ExpectedRevision: old, CharacterID: "p1-c1", Target: Position{2, 1}}); err != ErrStaleRevision {
 		t.Fatalf("got %v", err)
 	}
