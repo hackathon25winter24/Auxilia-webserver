@@ -128,7 +128,7 @@ func newState(id string, players [2]Player, selections [2][]string, started bool
 	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: players[0].ID, Turn: 1, TurnDeadline: deadline, LastEvent: lastEvent}
 	s.Players[0].Cost, s.Players[1].Cost = MaxCost, MaxCost
 	s.EnsureBases()
-	starts := [2][]Position{{{0, 0}, {1, 2}, {0, 4}}, {{6, 3}, {7, 0}, {7, 4}}}
+	starts := [2][]Position{{{0, 0}, {1, 2}, {0, 4}}, {{6, 2}, {7, 0}, {7, 4}}}
 	for side := range 2 {
 		for i, defID := range selections[side] {
 			if i >= 3 {

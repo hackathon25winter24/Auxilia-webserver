@@ -27,7 +27,7 @@ func TestPendingMatchStartsAfterBothPlayersAreReady(t *testing.T) {
 
 func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
 	s := fixture()
-	want := []Position{{0, 0}, {1, 2}, {0, 4}, {6, 3}, {7, 0}, {7, 4}}
+	want := []Position{{0, 0}, {1, 2}, {0, 4}, {6, 2}, {7, 0}, {7, 4}}
 	for i, position := range want {
 		if s.Characters[i].Position != position {
 			t.Fatalf("character %d position=%v want=%v", i, s.Characters[i].Position, position)
