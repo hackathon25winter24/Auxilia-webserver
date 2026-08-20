@@ -63,7 +63,7 @@ func main() {
 			}
 		}
 	}()
-	appPort := env("PORT", "8081")
+	appPort := env("PORT", "8080")
 	log.Printf("Auxilia webserver listening on :%s", appPort)
 	log.Fatal(http.ListenAndServe(":"+appPort, cors(mux)))
 }

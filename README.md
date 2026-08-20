@@ -21,7 +21,7 @@ ALLOWED_ORIGINS=https://hackathon25winter24.github.io
 ```
 
 HTTP待受ポートにはNeoShowcaseから渡される `PORT` を使用します。未指定の場合は
-`8081` で起動します。
+`8080` で起動します。
 
 ## 保存されるデータ
 
@@ -40,11 +40,11 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-MariaDBテーブルは起動時に自動作成されます。既定のAPI URLは `http://localhost:8081` です。
+MariaDBテーブルは起動時に自動作成されます。既定のAPI URLは `http://localhost:8080` です。
 手動で作成する場合は `migrations/001_init.sql` を利用できます。
 
 Composeのappサービスには、`auxilia-web.trap.show` をコンテナ内部の
-`8081`番ポートへ転送するtraefikラベルが設定されています。公開サーバー上で
+`8080`番ポートへ転送するtraefikラベルが設定されています。公開サーバー上で
 別のルーター名や外部Dockerネットワークが指定されている場合は、その環境の
 traefik設定に合わせてください。
 
@@ -53,7 +53,7 @@ traefik設定に合わせてください。
 次の環境変数を設定してサーバーを起動します。
 
 ```sh
-PORT=8081
+PORT=8080
 NS_MARIADB_HOSTNAME=127.0.0.1
 NS_MARIADB_PORT=3306
 NS_MARIADB_USER=auxilia_user

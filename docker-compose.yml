@@ -27,9 +27,9 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "8080:8080"
     environment:
-      PORT: 8081
+      PORT: 8080
       NS_MARIADB_HOSTNAME: db
       NS_MARIADB_PORT: 3306
       NS_MARIADB_USER: auxilia_user
@@ -45,7 +45,7 @@ services:
       - "traefik.http.routers.auxilia-web-router.rule=Host(`auxilia-web.trap.show`)"
       - "traefik.http.routers.auxilia-web-router.tls=true"
       - "traefik.http.routers.auxilia-web-router.service=auxilia-web-service"
-      - "traefik.http.services.auxilia-web-service.loadbalancer.server.port=8081"
+      - "traefik.http.services.auxilia-web-service.loadbalancer.server.port=8080"
 
 volumes:
   mariadb-data:

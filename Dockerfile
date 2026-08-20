@@ -9,5 +9,5 @@ FROM alpine:3.22
 RUN adduser -D -H -u 10001 app
 USER app
 COPY --from=builder /auxilia-webserver /usr/local/bin/auxilia-webserver
-EXPOSE 8081
+EXPOSE 8080
 ENTRYPOINT ["auxilia-webserver"]
