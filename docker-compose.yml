@@ -40,6 +40,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auxilia-web-router.rule=Host(`auxilia-web.trap.show`)"
+      - "traefik.http.routers.auxilia-web-router.tls=true"
+      - "traefik.http.routers.auxilia-web-router.service=auxilia-web-service"
+      - "traefik.http.services.auxilia-web-service.loadbalancer.server.port=8081"
 
 volumes:
   mariadb-data:

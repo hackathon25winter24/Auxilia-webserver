@@ -22,6 +22,11 @@ docker compose up -d --build
 MariaDBテーブルは起動時に自動作成されます。既定のAPI URLは `http://localhost:8081` です。
 手動で作成する場合は `migrations/001_init.sql` を利用できます。
 
+Composeのappサービスには、`auxilia-web.trap.show` をコンテナ内部の
+`8081`番ポートへ転送するtraefikラベルが設定されています。公開サーバー上で
+別のルーター名や外部Dockerネットワークが指定されている場合は、その環境の
+traefik設定に合わせてください。
+
 ## 既存MariaDBへ接続
 
 次の環境変数を設定してサーバーを起動します。
