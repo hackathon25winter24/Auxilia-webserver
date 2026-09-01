@@ -39,14 +39,16 @@ type AttackDefinition struct {
 	ClearDebuffs bool       `json:"clearDebuffs,omitempty"`
 }
 type CharacterDefinition struct {
-	ID        string              `json:"id"`
-	Name      string              `json:"name"`
-	Image     string              `json:"image"`
-	Portrait  string              `json:"portrait"`
-	MaxHP     int                 `json:"maxHP"`
-	MoveCost  int                 `json:"moveCost"`
-	MoveRange int                 `json:"moveRange"`
-	Attacks   [3]AttackDefinition `json:"attacks"`
+	ID                 string              `json:"id"`
+	Name               string              `json:"name"`
+	Image              string              `json:"image"`
+	Portrait           string              `json:"portrait"`
+	MaxHP              int                 `json:"maxHP"`
+	MoveCost           int                 `json:"moveCost"`
+	MoveRange          int                 `json:"moveRange"`
+	PassiveName        string              `json:"passiveName"`
+	PassiveDescription string              `json:"passiveDescription"`
+	Attacks            [3]AttackDefinition `json:"attacks"`
 }
 type Character struct {
 	ID           string   `json:"id"`
@@ -174,7 +176,7 @@ var Definitions = []CharacterDefinition{
 		a.EffectChance = 50
 		return a
 	}(), atk("真向斬り", 50, 220, "enemy", adjacent)}},
-	{ID: "shincho", Name: "新著", Image: "Shincho_mini.png", Portrait: "Shincho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 220, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 15, -40, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
+	{ID: "shincho", Name: "新著", Image: "Shincho_mini.png", Portrait: "Shincho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 220, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 15, -40, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
 		a := atk(":iihanashi:", 15, 0, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0}))
 		a.ClearDebuffs = true
 		return a
@@ -202,6 +204,28 @@ var Definitions = []CharacterDefinition{
 	}(), atk("活性化ガス", 20, -30, "ally", p(Position{0, 0}))}},
 }
 
+var passiveDefinitions = map[string][2]string{
+	"sophie":   {"範囲支援 fruit～結実～", "周囲1マス以内にいる自身を含む味方の攻撃ダメージを20上昇させる。"},
+	"jude":     {"受け身", "自身が受けるダメージを20軽減する。"},
+	"nadia":    {"対処番号04：過量使用", "攻撃が当たった敵に追加判定を行い、20%の確率で毒を与える。"},
+	"tsukiha":  {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
+	"aoi":      {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる味方のHPを30回復する。"},
+	"sena":     {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
+	"berenice": {"爆弾処理", "地雷マスに乗ってもダメージを受けない。"},
+	"chiyo":    {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
+	"shincho":  {":ganbare-:", "周囲1マス以内の味方の攻撃ダメージを10上昇させ、自身のターン終了時にHPを10回復する。"},
+	"zina":     {"補給拠点", "周囲1マス以内にいる味方のパッシブ効果値を20上昇させる。"},
+	"dana":     {"毒物耐性", "デバフとデバフマスの影響を受けない。"},
+}
+
+func init() {
+	for i := range Definitions {
+		passive := passiveDefinitions[Definitions[i].ID]
+		Definitions[i].PassiveName = passive[0]
+		Definitions[i].PassiveDescription = passive[1]
+	}
+}
+
 func NewState(id string, players [2]Player, selections [2][]string) *State {
 	return newState(id, players, selections, true)
 }
@@ -220,7 +244,8 @@ func newState(id string, players [2]Player, selections [2][]string, started bool
 	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: players[0].ID, Turn: 1, TurnDeadline: deadline, LastEvent: lastEvent}
 	s.Players[0].Cost, s.Players[1].Cost = MaxCost, MaxCost
 	s.EnsureBases()
-	starts := [2][]Position{{{0, 0}, {1, 2}, {0, 4}}, {{6, 2}, {7, 0}, {7, 4}}}
+	// 編成画面の1・2・3番目を、戦闘画面でも上・中・下の順に並べる。
+	starts := [2][]Position{{{0, 4}, {1, 2}, {0, 0}}, {{7, 4}, {6, 2}, {7, 0}}}
 	for side := range 2 {
 		for i, defID := range selections[side] {
 			if i >= 3 {
@@ -298,7 +323,7 @@ func (s *State) ApplyMove(playerID string, c Command) error {
 	if s.hasEffect(i, "鈍足") {
 		moveCost += 2
 	}
-	if tile := s.tileAt(s.Characters[i].Position); tile >= 0 && s.TileEffects[tile].Type == "まきびし" {
+	if tile := s.tileAt(s.Characters[i].Position); tile >= 0 && s.TileEffects[tile].Type == "まきびし" && !s.ignoresDebuffTiles(i) {
 		moveCost += 2
 	}
 	moveCost = max(0, moveCost)
@@ -375,7 +400,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	}
 	if a.Power >= 0 && (a.Target == "enemy" || a.Target == "any") {
 		for j := range s.Bases {
-			if s.Bases[j].OwnerID != playerID && containsPosition(cells, s.Bases[j].Position) {
+			if (a.Target == "any" || s.Bases[j].OwnerID != playerID) && containsPosition(cells, s.Bases[j].Position) {
 				s.Bases[j].HP = clamp(s.Bases[j].HP-s.attackPower(i, a.Power), 0, s.Bases[j].MaxHP)
 				affected++
 			}
@@ -616,6 +641,12 @@ func (s *State) triggerTile(character int) {
 		}
 	}
 }
+
+func (s *State) ignoresDebuffTiles(character int) bool {
+	id := s.Characters[character].DefinitionID
+	return id == "tsukiha" || id == "dana"
+}
+
 func (s *State) processTurnEnd(playerID string) {
 	for i := range s.Characters {
 		c := &s.Characters[i]
@@ -625,7 +656,7 @@ func (s *State) processTurnEnd(playerID string) {
 		if s.hasEffect(i, "毒") {
 			c.HP = clamp(c.HP-40, 0, c.MaxHP)
 		}
-		if tile := s.tileAt(c.Position); tile >= 0 && s.TileEffects[tile].Type == "毒ガス" {
+		if tile := s.tileAt(c.Position); tile >= 0 && s.TileEffects[tile].Type == "毒ガス" && !s.ignoresDebuffTiles(i) {
 			s.addEffect(i, "毒")
 		}
 		effects := c.Effects[:0]

@@ -27,11 +27,33 @@ func TestPendingMatchStartsAfterBothPlayersAreReady(t *testing.T) {
 
 func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
 	s := fixture()
-	want := []Position{{0, 0}, {1, 2}, {0, 4}, {6, 2}, {7, 0}, {7, 4}}
+	want := []Position{{0, 4}, {1, 2}, {0, 0}, {7, 4}, {6, 2}, {7, 0}}
 	for i, position := range want {
 		if s.Characters[i].Position != position {
 			t.Fatalf("character %d position=%v want=%v", i, s.Characters[i].Position, position)
 		}
+	}
+}
+
+func TestTsukihaIgnoresPersistentDebuffTileEffects(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"tsukiha", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	tsukiha := &s.Characters[0]
+	tsukiha.Position = Position{2, 2}
+	s.TileEffects = []TileEffect{{Position: tsukiha.Position, Type: "まきびし", OwnerID: "b"}}
+	beforeCost := s.Players[0].Cost
+	if err := s.ApplyMove("a", Command{ExpectedRevision: s.Revision, CharacterID: tsukiha.ID, Target: Position{3, 2}}); err != nil {
+		t.Fatal(err)
+	}
+	if spent := beforeCost - s.Players[0].Cost; spent != 3 {
+		t.Fatalf("まきびし上からの移動コスト=%d, want=3", spent)
+	}
+
+	tsukiha.Position = Position{2, 2}
+	tsukiha.Effects = nil
+	s.TileEffects = []TileEffect{{Position: tsukiha.Position, Type: "毒ガス", OwnerID: "b"}}
+	s.processTurnEnd("a")
+	if s.hasEffect(0, "毒") {
+		t.Fatal("月葉に毒ガスマスのターン終了時毒が付与されました")
 	}
 }
 func TestBoardAndBaseInitialState(t *testing.T) {
@@ -77,6 +99,7 @@ func TestRejectsOutOfRangeMove(t *testing.T) {
 }
 func TestServerCalculatesDamage(t *testing.T) {
 	s := fixture()
+	s.Characters[0].Position = Position{0, 0}
 	s.Characters[3].Position = Position{3, 0}
 	err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 0}})
 	if err != nil {
@@ -89,7 +112,7 @@ func TestServerCalculatesDamage(t *testing.T) {
 func TestRejectsStaleRevision(t *testing.T) {
 	s := fixture()
 	old := s.Revision
-	_ = s.ApplyMove("a", Command{ExpectedRevision: old, CharacterID: "p1-c1", Target: Position{1, 0}})
+	_ = s.ApplyMove("a", Command{ExpectedRevision: old, CharacterID: "p1-c1", Target: Position{0, 3}})
 	if err := s.ApplyMove("a", Command{ExpectedRevision: old, CharacterID: "p1-c1", Target: Position{2, 1}}); err != ErrStaleRevision {
 		t.Fatalf("got %v", err)
 	}
@@ -109,6 +132,22 @@ func TestServerDamagesBaseAndEndsMatch(t *testing.T) {
 	}
 	if !s.Finished || s.WinnerID != "a" {
 		t.Fatalf("finished=%v winner=%q", s.Finished, s.WinnerID)
+	}
+}
+
+func TestShinchoProgressAttackHitsSelfAndFriendlyBase(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"shincho", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.Characters[0].Position = s.Bases[0].Position
+	beforeCharacter := s.Characters[0].HP
+	beforeBase := s.Bases[0].HP
+	if err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: s.Characters[0].Position}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Characters[0].HP >= beforeCharacter {
+		t.Fatalf("新著自身にダメージが入っていません: hp=%d", s.Characters[0].HP)
+	}
+	if s.Bases[0].HP >= beforeBase {
+		t.Fatalf("味方拠点にダメージが入っていません: hp=%d", s.Bases[0].HP)
 	}
 }
 
