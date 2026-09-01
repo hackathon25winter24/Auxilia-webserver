@@ -57,6 +57,20 @@ func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
 	}
 }
 
+func TestSophiePassiveExcludesHerselfAndBoostsNearbyAlly(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"sophie", "chiyo", "aoi"}, {"jude", "nadia", "dana"}})
+	s.Characters[0].Position = Position{2, 2}
+	s.Characters[1].Position = Position{3, 2}
+	s.Characters[1].HP-- // 千代自身の最大HP時パッシブをこの検証から除外する。
+
+	if got := s.attackPower(0, 10); got != 10 {
+		t.Fatalf("ソフィー自身の攻撃力=%d, want=10", got)
+	}
+	if got := s.attackPower(1, 10); got != 30 {
+		t.Fatalf("隣接する味方の攻撃力=%d, want=30", got)
+	}
+}
+
 func TestTsukihaIgnoresPersistentDebuffTileEffects(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"tsukiha", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
 	tsukiha := &s.Characters[0]
@@ -162,7 +176,7 @@ func TestServerCalculatesDamage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Characters[3].HP != 130 {
+	if s.Characters[3].HP != 80 {
 		t.Fatalf("hp=%d", s.Characters[3].HP)
 	}
 }

@@ -26,30 +26,6 @@ type Position struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 }
-type AttackDefinition struct {
-	Name         string     `json:"name"`
-	Cost         int        `json:"cost"`
-	Power        int        `json:"power"`
-	Range        int        `json:"range"`
-	Target       string     `json:"target"`
-	Pattern      []Position `json:"pattern"`
-	Effect       string     `json:"effect,omitempty"`
-	EffectChance int        `json:"effectChance,omitempty"`
-	Tile         string     `json:"tile,omitempty"`
-	ClearDebuffs bool       `json:"clearDebuffs,omitempty"`
-}
-type CharacterDefinition struct {
-	ID                 string              `json:"id"`
-	Name               string              `json:"name"`
-	Image              string              `json:"image"`
-	Portrait           string              `json:"portrait"`
-	MaxHP              int                 `json:"maxHP"`
-	MoveCost           int                 `json:"moveCost"`
-	MoveRange          int                 `json:"moveRange"`
-	PassiveName        string              `json:"passiveName"`
-	PassiveDescription string              `json:"passiveDescription"`
-	Attacks            [3]AttackDefinition `json:"attacks"`
-}
 type Character struct {
 	ID           string   `json:"id"`
 	DefinitionID string   `json:"definitionId"`
@@ -106,124 +82,6 @@ type Command struct {
 	AttackIndex      int      `json:"attackIndex"`
 	Target           Position `json:"target"`
 	Direction        Position `json:"direction"`
-}
-
-func p(points ...Position) []Position { return points }
-func atk(name string, cost, power int, target string, pattern []Position) AttackDefinition {
-	r := 0
-	for _, cell := range pattern {
-		if d := abs(cell.X) + abs(cell.Y); d > r {
-			r = d
-		}
-	}
-	return AttackDefinition{Name: name, Cost: cost, Power: power, Range: r, Target: target, Pattern: pattern}
-}
-
-var adjacent = p(Position{1, 0})
-var Definitions = []CharacterDefinition{
-	{ID: "sophie", Name: "ソフィー", Image: "Sophie_mini.png", Portrait: "Sophie.png", MaxHP: 150, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{atk("突き sprout～芽生え～", 10, 10, "enemy", adjacent), atk("範囲狙撃 growth～成長～", 20, 50, "enemy", p(Position{3, -1}, Position{3, 0}, Position{3, 1})), atk("集中狙撃 bloom～開花～", 50, 250, "enemy", p(Position{3, 0}))}},
-	{ID: "jude", Name: "ジュード", Image: "Jude_mini.png", Portrait: "Jude.png", MaxHP: 350, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("急襲", 10, 20, "enemy", adjacent)
-		a.Effect = "出血"
-		a.EffectChance = 30
-		return a
-	}(), atk("切り裂き", 20, 50, "enemy", adjacent), func() AttackDefinition {
-		a := atk("応急手当", 30, -30, "ally", p(Position{0, 0}))
-		a.ClearDebuffs = true
-		return a
-	}()}},
-	{ID: "nadia", Name: "ナディア", Image: "Nadia_mini.png", Portrait: "Nadia.png", MaxHP: 200, MoveCost: 7, MoveRange: 3, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("対処番号05：対包囲戦術", 10, 20, "enemy", p(Position{1, 0}, Position{0, 1}, Position{0, -1}, Position{-1, 0}))
-		a.Effect = "毒"
-		a.EffectChance = 20
-		return a
-	}(), func() AttackDefinition {
-		a := atk("対処番号03：前方範囲殲滅", 20, 40, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}))
-		a.Effect = "毒"
-		a.EffectChance = 40
-		return a
-	}(), func() AttackDefinition {
-		a := atk("対処番号02：前方殲滅・改", 30, 60, "enemy", adjacent)
-		a.Effect = "毒"
-		a.EffectChance = 60
-		return a
-	}()}},
-	{ID: "tsukiha", Name: "月葉", Image: "Tsukiha_mini.png", Portrait: "Tsukiha.png", MaxHP: 100, MoveCost: 3, MoveRange: 4, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("忍法：手裏剣投げの術・近", 5, 10, "enemy", p(Position{1, -1}, Position{2, 0}, Position{1, 1}))
-		a.Effect = "出血"
-		a.EffectChance = 10
-		return a
-	}(), func() AttackDefinition {
-		a := atk("忍法：手裏剣投げの術・遠", 5, 10, "enemy", p(Position{2, -1}, Position{3, 0}, Position{2, 1}))
-		a.Effect = "出血"
-		a.EffectChance = 10
-		return a
-	}(), func() AttackDefinition {
-		a := atk("忍法：まきびし投げの術", 10, 0, "cell", adjacent)
-		a.Tile = "まきびし"
-		return a
-	}()}},
-	{ID: "aoi", Name: "扇衣", Image: "Aoi_mini.png", Portrait: "Aoi.png", MaxHP: 250, MoveCost: 8, MoveRange: 2, Attacks: [3]AttackDefinition{atk("汐汲～しおくみ～", 10, 20, "enemy", p(Position{1, 0}, Position{0, 1}, Position{0, -1})), atk("女伊達～おんなだて～", 20, 40, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})), atk("鷺娘～さぎむすめ～", 30, 60, "enemy", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))}},
-	{ID: "sena", Name: "星凪", Image: "Sena_mini.png", Portrait: "Sena.png", MaxHP: 250, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{atk("一条流槍術：衝き", 20, 60, "enemy", p(Position{2, 0})), atk("一条流槍術：掃い", 25, 40, "enemy", p(Position{2, -1}, Position{2, 0}, Position{2, 1})), atk("一条流槍術：薙ぎ", 40, 90, "enemy", p(Position{1, 0}, Position{2, 0}))}},
-	{ID: "berenice", Name: "ベレニス", Image: "berenice_mini.png", Portrait: "Berenice.png", MaxHP: 200, MoveCost: 6, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("地雷設置", 15, 0, "cell", adjacent)
-		a.Tile = "地雷"
-		return a
-	}(), atk("爆破！", 25, 60, "enemy", p(Position{1, 0}, Position{2, -1}, Position{2, 0}, Position{2, 1}, Position{3, 0})), atk("小型爆弾", 20, 40, "enemy", adjacent)}},
-	{ID: "chiyo", Name: "千代", Image: "Chiyo_mini.png", Portrait: "Chiyo.png", MaxHP: 150, MoveCost: 5, MoveRange: 3, Attacks: [3]AttackDefinition{atk("一文字斬り", 10, 30, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})), func() AttackDefinition {
-		a := atk("袈裟斬り", 20, 60, "enemy", adjacent)
-		a.Effect = "出血"
-		a.EffectChance = 50
-		return a
-	}(), atk("真向斬り", 50, 220, "enemy", adjacent)}},
-	{ID: "shincho", Name: "新著", Image: "Shincho_mini.png", Portrait: "Shincho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 220, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 15, -40, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
-		a := atk(":iihanashi:", 15, 0, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0}))
-		a.ClearDebuffs = true
-		return a
-	}()}},
-	{ID: "zina", Name: "ジーナ", Image: "Zina_mini.png", Portrait: "Zina.png", MaxHP: 200, MoveCost: 5, MoveRange: 3, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("遠距離制圧", 20, 20, "enemy", p(Position{3, 0}))
-		a.Effect = "麻痺"
-		a.EffectChance = 30
-		return a
-	}(), func() AttackDefinition {
-		a := atk("中距離制圧", 20, 20, "enemy", p(Position{2, 0}))
-		a.Effect = "麻痺"
-		a.EffectChance = 60
-		return a
-	}(), atk("軍隊式近接格闘術", 30, 60, "enemy", adjacent)}},
-	{ID: "dana", Name: "ダーナ", Image: "Dana_mini.png", Portrait: "Dana.png", MaxHP: 200, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("残留型毒ガス", 10, 0, "cell", adjacent)
-		a.Tile = "毒ガス"
-		return a
-	}(), func() AttackDefinition {
-		a := atk("拡散型毒ガス", 20, 20, "enemy", p(Position{1, 0}, Position{2, -1}, Position{2, 0}, Position{2, 1}, Position{3, 0}))
-		a.Effect = "毒"
-		a.EffectChance = 50
-		return a
-	}(), atk("活性化ガス", 20, -30, "ally", p(Position{0, 0}))}},
-}
-
-var passiveDefinitions = map[string][2]string{
-	"sophie":   {"範囲支援 fruit～結実～", "周囲1マス以内にいる自身を含む味方の攻撃ダメージを20上昇させる。"},
-	"jude":     {"受け身", "自身が受けるダメージを20軽減する。"},
-	"nadia":    {"対処番号04：過量使用", "攻撃が当たった敵に追加判定を行い、20%の確率で毒を与える。"},
-	"tsukiha":  {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
-	"aoi":      {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる味方のHPを30回復する。"},
-	"sena":     {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
-	"berenice": {"爆弾処理", "地雷マスに乗ってもダメージを受けない。"},
-	"chiyo":    {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
-	"shincho":  {":ganbare-:", "周囲1マス以内の味方の攻撃ダメージを10上昇させ、自身のターン終了時にHPを10回復する。"},
-	"zina":     {"補給拠点", "周囲1マス以内にいる味方のパッシブ効果値を20上昇させる。"},
-	"dana":     {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
-}
-
-func init() {
-	for i := range Definitions {
-		passive := passiveDefinitions[Definitions[i].ID]
-		Definitions[i].PassiveName = passive[0]
-		Definitions[i].PassiveDescription = passive[1]
-	}
 }
 
 func NewState(id string, players [2]Player, selections [2][]string) *State {
@@ -317,14 +175,6 @@ func (s *State) EnsureBases() {
 		s.BlockedCells = []Position{{1, 1}, {2, 3}, {5, 1}, {6, 3}}
 	}
 }
-func Definition(id string) (CharacterDefinition, bool) {
-	for _, d := range Definitions {
-		if d.ID == id {
-			return d, true
-		}
-	}
-	return CharacterDefinition{}, false
-}
 func (s *State) ApplyMove(playerID string, c Command) error {
 	if err := s.validate(playerID, c); err != nil {
 		return err
@@ -402,7 +252,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		power := a.Power
 		if power > 0 {
 			power = s.attackPower(i, power)
-			if d.ID != "sena" {
+			if !passiveFor(d.ID).IgnorePassiveReduce {
 				power = max(0, power-s.damageReduction(j))
 			}
 		}
@@ -413,7 +263,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		if a.Effect != "" && !same && s.roll(i, j, a.Effect, a.EffectChance) {
 			s.addEffect(j, a.Effect)
 		}
-		if d.ID == "nadia" && !same && s.roll(i, j, "過量使用", 20) {
+		if chance := passiveFor(d.ID).ExtraEffectChance; chance > 0 && !same && s.roll(i, j, "過量使用", chance) {
 			s.addEffect(j, "毒")
 		}
 		affected++
@@ -580,8 +430,8 @@ func (s *State) roll(actor, target int, effect string, chance int) bool {
 }
 func (s *State) passiveBoost(character int) int {
 	for i, c := range s.Characters {
-		if c.HP > 0 && c.OwnerID == s.Characters[character].OwnerID && c.DefinitionID == "zina" && inSurroundingArea(c.Position, s.Characters[character].Position) && i != character {
-			return 20
+		if c.HP > 0 && c.OwnerID == s.Characters[character].OwnerID && passiveFor(c.DefinitionID).PassiveValueBoost > 0 && inSurroundingArea(c.Position, s.Characters[character].Position) && i != character {
+			return passiveFor(c.DefinitionID).PassiveValueBoost
 		}
 	}
 	return 0
@@ -594,25 +444,23 @@ func (s *State) attackPower(actor, power int) int {
 		power = power * 75 / 100
 	}
 	boost := s.passiveBoost(actor)
-	if s.Characters[actor].DefinitionID == "chiyo" && s.Characters[actor].HP == s.Characters[actor].MaxHP {
-		power += 50 + boost
+	if fullHPBoost := passiveFor(s.Characters[actor].DefinitionID).FullHPAttackBoost; fullHPBoost > 0 && s.Characters[actor].HP == s.Characters[actor].MaxHP {
+		power += fullHPBoost + boost
 	}
 	for i, c := range s.Characters {
 		if c.HP <= 0 || c.OwnerID != s.Characters[actor].OwnerID || !inSurroundingArea(c.Position, s.Characters[actor].Position) {
 			continue
 		}
-		if c.DefinitionID == "sophie" {
-			power += 20 + s.passiveBoost(i)
-		}
-		if c.DefinitionID == "shincho" {
-			power += 10 + s.passiveBoost(i)
+		passive := passiveFor(c.DefinitionID)
+		if attackBoost := passive.AttackBoost; attackBoost > 0 && !(passive.ExcludeSelf && i == actor) {
+			power += attackBoost + s.passiveBoost(i)
 		}
 	}
 	return power
 }
 func (s *State) damageReduction(character int) int {
-	if s.Characters[character].DefinitionID == "jude" {
-		return 20 + s.passiveBoost(character)
+	if reduction := passiveFor(s.Characters[character].DefinitionID).DamageReduction; reduction > 0 {
+		return reduction + s.passiveBoost(character)
 	}
 	return 0
 }
@@ -691,11 +539,8 @@ func (s *State) processTurnEnd(playerID string) {
 			continue
 		}
 		boost := s.passiveBoost(i)
-		if c.DefinitionID == "aoi" {
-			s.healNearby(i, 30+boost)
-		}
-		if c.DefinitionID == "shincho" {
-			s.healNearby(i, 10+boost)
+		if turnHeal := passiveFor(c.DefinitionID).TurnHeal; turnHeal > 0 {
+			s.healNearby(i, turnHeal+boost)
 		}
 	}
 }
