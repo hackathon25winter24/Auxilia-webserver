@@ -56,6 +56,31 @@ func TestTsukihaIgnoresPersistentDebuffTileEffects(t *testing.T) {
 		t.Fatal("月葉に毒ガスマスのターン終了時毒が付与されました")
 	}
 }
+
+func TestDanaReceivesDebuffTileDamageAndMoveCost(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"dana", "jude", "aoi"}, {"sophie", "chiyo", "zina"}})
+	dana := &s.Characters[0]
+	dana.Position = Position{2, 2}
+	s.TileEffects = []TileEffect{{Position: dana.Position, Type: "まきびし", OwnerID: "b"}}
+	beforeCost := s.Players[0].Cost
+	if err := s.ApplyMove("a", Command{ExpectedRevision: s.Revision, CharacterID: dana.ID, Target: Position{3, 2}}); err != nil {
+		t.Fatal(err)
+	}
+	if spent := beforeCost - s.Players[0].Cost; spent != 12 {
+		t.Fatalf("まきびし上からの移動コスト=%d, want=12", spent)
+	}
+
+	dana.Position = Position{2, 2}
+	dana.HP = dana.MaxHP
+	s.TileEffects = []TileEffect{{Position: Position{3, 2}, Type: "地雷", OwnerID: "b"}}
+	if err := s.ApplyMove("a", Command{ExpectedRevision: s.Revision, CharacterID: dana.ID, Target: Position{3, 2}}); err != nil {
+		t.Fatal(err)
+	}
+	if dana.HP != dana.MaxHP-100 {
+		t.Fatalf("地雷移動後のHP=%d, want=%d", dana.HP, dana.MaxHP-100)
+	}
+}
+
 func TestBoardAndBaseInitialState(t *testing.T) {
 	s := fixture()
 	want := []Position{{1, 1}, {2, 3}, {5, 1}, {6, 3}}
@@ -65,9 +90,19 @@ func TestBoardAndBaseInitialState(t *testing.T) {
 		}
 	}
 	for _, base := range s.Bases {
-		if base.HP != 300 || base.MaxHP != 300 {
+		if base.HP != 400 || base.MaxHP != 400 {
 			t.Fatalf("base=%+v", base)
 		}
+	}
+}
+
+func TestExistingBaseStateMigratesFromThreeHundredToFourHundred(t *testing.T) {
+	s := fixture()
+	s.Bases[0].HP = 250
+	s.Bases[0].MaxHP = 300
+	s.EnsureBases()
+	if s.Bases[0].HP != 350 || s.Bases[0].MaxHP != 400 {
+		t.Fatalf("base=%+v", s.Bases[0])
 	}
 }
 

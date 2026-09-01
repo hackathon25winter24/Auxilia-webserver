@@ -12,7 +12,7 @@ const (
 	Width        = 8
 	Height       = 5
 	MaxCost      = 50
-	MaxBaseHP    = 300
+	MaxBaseHP    = 400
 	TurnDuration = 90 * time.Second
 )
 
@@ -215,7 +215,7 @@ var passiveDefinitions = map[string][2]string{
 	"chiyo":    {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
 	"shincho":  {":ganbare-:", "周囲1マス以内の味方の攻撃ダメージを10上昇させ、自身のターン終了時にHPを10回復する。"},
 	"zina":     {"補給拠点", "周囲1マス以内にいる味方のパッシブ効果値を20上昇させる。"},
-	"dana":     {"毒物耐性", "デバフとデバフマスの影響を受けない。"},
+	"dana":     {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
 }
 
 func init() {
@@ -626,7 +626,7 @@ func (s *State) triggerTile(character int) {
 	}
 	tile := s.TileEffects[index]
 	id := s.Characters[character].DefinitionID
-	if id == "tsukiha" || id == "dana" || id == "berenice" && tile.Type == "地雷" {
+	if id == "tsukiha" || id == "berenice" && tile.Type == "地雷" {
 		return
 	}
 	switch tile.Type {
@@ -643,8 +643,7 @@ func (s *State) triggerTile(character int) {
 }
 
 func (s *State) ignoresDebuffTiles(character int) bool {
-	id := s.Characters[character].DefinitionID
-	return id == "tsukiha" || id == "dana"
+	return s.Characters[character].DefinitionID == "tsukiha"
 }
 
 func (s *State) processTurnEnd(playerID string) {
