@@ -283,6 +283,26 @@ func (s *State) Ready(playerID string) error {
 	}
 	return nil
 }
+
+func (s *State) CancelReady(playerID string) error {
+	if s.Started || s.Finished {
+		return ErrInvalidAction
+	}
+	if playerID != s.Players[0].ID && playerID != s.Players[1].ID {
+		return ErrInvalidAction
+	}
+	for i, id := range s.ReadyPlayerIDs {
+		if id != playerID {
+			continue
+		}
+		s.ReadyPlayerIDs = append(s.ReadyPlayerIDs[:i], s.ReadyPlayerIDs[i+1:]...)
+		s.Revision++
+		s.LastEvent = Event{Type: "PLAYER_READY_CANCELLED", Text: "対戦開始をキャンセルしました"}
+		s.record(s.LastEvent)
+		break
+	}
+	return nil
+}
 func (s *State) EnsureBases() {
 	positions := [2]Position{{0, 2}, {7, 2}}
 	for i := range s.Bases {

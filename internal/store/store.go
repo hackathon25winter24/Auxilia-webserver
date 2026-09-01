@@ -169,6 +169,34 @@ func (s *Store) ReadyMatch(matchID, guestID string) (*game.State, error) {
 	return state, normalize(err)
 }
 
+func (s *Store) CancelReadyMatch(matchID, guestID string) (*game.State, error) {
+	var state *game.State
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var g Guest
+		if err := tx.First(&g, "id = ? AND match_id = ?", guestID, matchID).Error; err != nil {
+			return err
+		}
+		var m Match
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&m, "id = ?", matchID).Error; err != nil {
+			return err
+		}
+		parsed, err := decodeState(m.StateJSON)
+		if err != nil {
+			return err
+		}
+		if err := parsed.CancelReady(guestID); err != nil {
+			return err
+		}
+		if err := saveState(tx, &m, parsed); err != nil {
+			return err
+		}
+		parsed.ServerTime = time.Now()
+		state = parsed
+		return nil
+	})
+	return state, normalize(err)
+}
+
 func (s *Store) CancelQueue(id string) (*Guest, error) {
 	result := s.db.Model(&Guest{}).Where("id = ? AND match_id = ''", id).Update("queued", false)
 	if result.Error != nil {

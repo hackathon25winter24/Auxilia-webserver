@@ -52,6 +52,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/matchmaking", s.auth(s.cancel))
 	mux.HandleFunc("GET /api/matches/{id}", s.auth(s.matchState))
 	mux.HandleFunc("POST /api/matches/{id}/ready", s.auth(s.readyMatch))
+	mux.HandleFunc("DELETE /api/matches/{id}/ready", s.auth(s.cancelReadyMatch))
 	mux.HandleFunc("POST /api/matches/{id}/leave", s.auth(s.leaveMatch))
 	mux.HandleFunc("POST /api/matches/{id}/move", s.auth(s.move))
 	mux.HandleFunc("POST /api/matches/{id}/attack", s.auth(s.attack))
@@ -179,6 +180,18 @@ func (s *service) matchState(w http.ResponseWriter, r *http.Request, g *store.Gu
 func (s *service) readyMatch(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	state, err := s.store.ReadyMatch(r.PathValue("id"), g.ID)
 	if err != nil {
+		storeError(w, err)
+		return
+	}
+	write(w, 200, state)
+}
+func (s *service) cancelReadyMatch(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	state, err := s.store.CancelReadyMatch(r.PathValue("id"), g.ID)
+	if err != nil {
+		if errors.Is(err, game.ErrInvalidAction) {
+			problem(w, 409, "開始済みの試合はキャンセルできません")
+			return
+		}
 		storeError(w, err)
 		return
 	}

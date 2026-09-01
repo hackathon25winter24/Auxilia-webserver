@@ -25,6 +25,28 @@ func TestPendingMatchStartsAfterBothPlayersAreReady(t *testing.T) {
 	}
 }
 
+func TestPlayerCanCancelReadyBeforeOpponentStarts(t *testing.T) {
+	s := NewPendingState("m1", [2]Player{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}}, [2][]string{{"zina", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	if err := s.Ready("a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CancelReady("a"); err != nil {
+		t.Fatal(err)
+	}
+	if s.Started || len(s.ReadyPlayerIDs) != 0 {
+		t.Fatalf("started=%v ready=%v", s.Started, s.ReadyPlayerIDs)
+	}
+	if err := s.Ready("a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Ready("b"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CancelReady("a"); err != ErrInvalidAction {
+		t.Fatalf("開始後のキャンセル結果=%v", err)
+	}
+}
+
 func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
 	s := fixture()
 	want := []Position{{0, 4}, {1, 2}, {0, 0}, {7, 4}, {6, 2}, {7, 0}}
