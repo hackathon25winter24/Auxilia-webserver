@@ -2,6 +2,34 @@ package game
 
 import "testing"
 
+func TestSenaAttackRangesAndDebuffsMatchCharacterSpec(t *testing.T) {
+	sena, ok := Definition("sena")
+	if !ok {
+		t.Fatal("星凪の定義がありません")
+	}
+	wantPatterns := [3][]Position{
+		{{2, 0}},
+		{{2, -1}, {2, 0}, {2, 1}},
+		{{1, 0}, {2, 0}, {3, 0}},
+	}
+	wantEffects := [3]string{"出血", "", "出血"}
+	wantChances := [3]int{50, 0, 10}
+	for i, attack := range sena.Attacks {
+		if len(attack.Pattern) != len(wantPatterns[i]) {
+			t.Fatalf("星凪の攻撃%dの範囲=%v, want=%v", i+1, attack.Pattern, wantPatterns[i])
+		}
+		for cell := range attack.Pattern {
+			if attack.Pattern[cell] != wantPatterns[i][cell] {
+				t.Errorf("星凪の攻撃%dの範囲=%v, want=%v", i+1, attack.Pattern, wantPatterns[i])
+				break
+			}
+		}
+		if attack.Effect != wantEffects[i] || attack.EffectChance != wantChances[i] {
+			t.Errorf("星凪の攻撃%dのデバフ=%s %d%%, want=%s %d%%", i+1, attack.Effect, attack.EffectChance, wantEffects[i], wantChances[i])
+		}
+	}
+}
+
 func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 	type attackNumbers struct {
 		cost, power, effectChance int
@@ -14,16 +42,16 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 	// 仕様書/キャラ.md に記載された数値。回復量は内部表現に合わせて負数で表す。
 	want := map[string]characterNumbers{
 		"sophie":   {100, 10, [3]attackNumbers{{10, 10, 0}, {20, 50, 0}, {50, 250, 0}}},
-		"jude":     {350, 10, [3]attackNumbers{{10, 20, 30}, {20, 50, 0}, {30, -30, 0}}},
+		"jude":     {250, 10, [3]attackNumbers{{10, 10, 30}, {20, 50, 0}, {30, -30, 0}}},
 		"nadia":    {200, 7, [3]attackNumbers{{10, 20, 20}, {20, 40, 40}, {30, 60, 60}}},
-		"tsukiha":  {100, 3, [3]attackNumbers{{5, 15, 10}, {5, 10, 10}, {10, 0, 0}}},
+		"tsukiha":  {100, 3, [3]attackNumbers{{4, 10, 10}, {6, 10, 10}, {10, 0, 0}}},
 		"aoi":      {250, 8, [3]attackNumbers{{10, 20, 0}, {20, 40, 0}, {30, 60, 0}}},
-		"sena":     {250, 10, [3]attackNumbers{{20, 60, 0}, {25, 40, 0}, {40, 90, 0}}},
+		"sena":     {200, 10, [3]attackNumbers{{15, 40, 50}, {20, 60, 0}, {30, 100, 10}}},
 		"berenice": {200, 6, [3]attackNumbers{{15, 0, 0}, {25, 60, 0}, {20, 40, 0}}},
-		"chiyo":    {100, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 220, 0}}},
-		"shincho":  {50, 15, [3]attackNumbers{{20, 250, 0}, {15, -40, 0}, {15, 0, 0}}},
+		"chiyo":    {150, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 200, 0}}},
+		"shincho":  {80, 15, [3]attackNumbers{{20, 220, 0}, {15, -40, 0}, {15, 0, 0}}},
 		"zina":     {150, 5, [3]attackNumbers{{20, 20, 30}, {20, 20, 60}, {30, 60, 0}}},
-		"dana":     {250, 10, [3]attackNumbers{{10, 0, 0}, {20, 20, 50}, {20, -30, 0}}},
+		"dana":     {200, 10, [3]attackNumbers{{10, 0, 0}, {20, 20, 50}, {20, -30, 0}}},
 	}
 
 	if len(Definitions) != len(want) {
