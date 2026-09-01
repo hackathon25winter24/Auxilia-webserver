@@ -99,7 +99,7 @@ func newState(id string, players [2]Player, selections [2][]string, started bool
 		lastEvent = Event{Type: "MATCH_STARTED", Text: "対戦開始"}
 		deadline = time.Now().Add(TurnDuration)
 	}
-	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: players[0].ID, Turn: 1, TurnDeadline: deadline, LastEvent: lastEvent}
+	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: firstPlayerID(id, players, selections), Turn: 1, TurnDeadline: deadline, LastEvent: lastEvent}
 	s.Players[0].Cost, s.Players[1].Cost = MaxCost, MaxCost
 	s.EnsureBases()
 	// 編成画面の1・2・3番目を、戦闘画面でも上・中・下の順に並べる。
@@ -116,6 +116,40 @@ func newState(id string, players [2]Player, selections [2][]string, started bool
 	}
 	s.record(s.LastEvent)
 	return s
+}
+
+func firstPlayerID(matchID string, players [2]Player, selections [2][]string) string {
+	totals := [2]int{movementCostTotal(selections[0]), movementCostTotal(selections[1])}
+	if totals[0] < totals[1] {
+		return players[0].ID
+	}
+	if totals[1] < totals[0] {
+		return players[1].ID
+	}
+
+	// 同点時はマッチIDとプレイヤーIDから決める。待機列へ入った順番には
+	// 依存せず、保存・再読込後にも同じ結果になる。
+	scores := [2]uint32{firstPlayerTieScore(matchID, players[0].ID), firstPlayerTieScore(matchID, players[1].ID)}
+	if scores[0] < scores[1] || (scores[0] == scores[1] && players[0].ID < players[1].ID) {
+		return players[0].ID
+	}
+	return players[1].ID
+}
+
+func movementCostTotal(selection []string) int {
+	total := 0
+	for _, id := range selection {
+		if definition, ok := Definition(id); ok {
+			total += definition.MoveCost
+		}
+	}
+	return total
+}
+
+func firstPlayerTieScore(matchID, playerID string) uint32 {
+	h := fnv.New32a()
+	_, _ = fmt.Fprintf(h, "%s:%s", matchID, playerID)
+	return h.Sum32()
 }
 
 func (s *State) Ready(playerID string) error {

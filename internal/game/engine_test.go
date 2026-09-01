@@ -3,7 +3,9 @@ package game
 import "testing"
 
 func fixture() *State {
-	return NewState("m1", [2]Player{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}}, [2][]string{{"zina", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s := NewState("m1", [2]Player{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}}, [2][]string{{"zina", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.TurnPlayerID = "a"
+	return s
 }
 
 func TestPendingMatchStartsAfterBothPlayersAreReady(t *testing.T) {
@@ -57,6 +59,28 @@ func TestInitialPositionsUseBottomLeftOriginLayout(t *testing.T) {
 	}
 }
 
+func TestLowerMovementCostTotalGoesFirst(t *testing.T) {
+	players := [2]Player{{ID: "slow"}, {ID: "fast"}}
+	selections := [2][]string{{"shincho", "jude", "sophie"}, {"tsukiha", "chiyo", "zina"}}
+	s := NewPendingState("movement-cost-match", players, selections)
+	if s.TurnPlayerID != "fast" {
+		t.Fatalf("先攻=%q, want fast (移動コスト合計が小さい側)", s.TurnPlayerID)
+	}
+}
+
+func TestTiedMovementCostDoesNotDependOnQueueOrder(t *testing.T) {
+	players := [2]Player{{ID: "alice"}, {ID: "bob"}}
+	selections := [2][]string{{"sophie", "jude", "dana"}, {"sophie", "jude", "dana"}}
+	first := NewPendingState("tied-movement-cost-match", players, selections).TurnPlayerID
+
+	swappedPlayers := [2]Player{players[1], players[0]}
+	swappedSelections := [2][]string{selections[1], selections[0]}
+	second := NewPendingState("tied-movement-cost-match", swappedPlayers, swappedSelections).TurnPlayerID
+	if first != second {
+		t.Fatalf("待機順変更前の先攻=%q, 変更後=%q", first, second)
+	}
+}
+
 func TestSophiePassiveExcludesHerselfAndBoostsNearbyAlly(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"sophie", "chiyo", "aoi"}, {"jude", "nadia", "dana"}})
 	s.Characters[0].Position = Position{2, 2}
@@ -73,6 +97,7 @@ func TestSophiePassiveExcludesHerselfAndBoostsNearbyAlly(t *testing.T) {
 
 func TestTsukihaIgnoresPersistentDebuffTileEffects(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"tsukiha", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.TurnPlayerID = "a"
 	tsukiha := &s.Characters[0]
 	tsukiha.Position = Position{2, 2}
 	s.TileEffects = []TileEffect{{Position: tsukiha.Position, Type: "まきびし", OwnerID: "b"}}
@@ -95,6 +120,7 @@ func TestTsukihaIgnoresPersistentDebuffTileEffects(t *testing.T) {
 
 func TestDanaReceivesDebuffTileDamageAndMoveCost(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"dana", "jude", "aoi"}, {"sophie", "chiyo", "zina"}})
+	s.TurnPlayerID = "a"
 	dana := &s.Characters[0]
 	dana.Position = Position{2, 2}
 	s.TileEffects = []TileEffect{{Position: dana.Position, Type: "まきびし", OwnerID: "b"}}
@@ -208,6 +234,7 @@ func TestServerDamagesBaseAndEndsMatch(t *testing.T) {
 
 func TestShinchoProgressAttackHitsSelfAndFriendlyBase(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"shincho", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.TurnPlayerID = "a"
 	s.Characters[0].Position = s.Bases[0].Position
 	beforeCharacter := s.Characters[0].HP
 	beforeBase := s.Bases[0].HP
@@ -243,6 +270,7 @@ func TestSurrenderAwardsWinToOpponent(t *testing.T) {
 
 func TestMineDealsDamageAndDisappears(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"berenice", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.TurnPlayerID = "a"
 	s.Characters[0].Position = Position{2, 2}
 	if err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 2}}); err != nil {
 		t.Fatal(err)
