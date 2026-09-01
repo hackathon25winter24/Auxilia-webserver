@@ -197,6 +197,22 @@ func TestPoisonDealsFortyDamageAtTurnEnd(t *testing.T) {
 	}
 }
 
+func TestAoiPassiveHealsAllEightSurroundingCells(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"aoi", "jude", "dana"}, {"sophie", "chiyo", "zina"}})
+	s.Characters[0].Position = Position{3, 2}
+	s.Characters[1].Position = Position{4, 3} // 斜め隣接
+	s.Characters[2].Position = Position{5, 3} // 範囲外
+	s.Characters[1].HP = 100
+	s.Characters[2].HP = 100
+	s.processTurnEnd("a")
+	if s.Characters[1].HP != 130 {
+		t.Fatalf("斜め隣接する味方のHP=%d, want=130", s.Characters[1].HP)
+	}
+	if s.Characters[2].HP != 100 {
+		t.Fatalf("範囲外の味方のHP=%d, want=100", s.Characters[2].HP)
+	}
+}
+
 func TestJudeReducesDamage(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"zina", "dana", "aoi"}, {"jude", "chiyo", "sophie"}})
 	s.Characters[0].Position = Position{0, 0}

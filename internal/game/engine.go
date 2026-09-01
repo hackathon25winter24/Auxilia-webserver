@@ -560,7 +560,7 @@ func (s *State) roll(actor, target int, effect string, chance int) bool {
 }
 func (s *State) passiveBoost(character int) int {
 	for i, c := range s.Characters {
-		if c.HP > 0 && c.OwnerID == s.Characters[character].OwnerID && c.DefinitionID == "zina" && distance(c.Position, s.Characters[character].Position) <= 1 && i != character {
+		if c.HP > 0 && c.OwnerID == s.Characters[character].OwnerID && c.DefinitionID == "zina" && inSurroundingArea(c.Position, s.Characters[character].Position) && i != character {
 			return 20
 		}
 	}
@@ -578,7 +578,7 @@ func (s *State) attackPower(actor, power int) int {
 		power += 50 + boost
 	}
 	for i, c := range s.Characters {
-		if c.HP <= 0 || c.OwnerID != s.Characters[actor].OwnerID || distance(c.Position, s.Characters[actor].Position) > 1 {
+		if c.HP <= 0 || c.OwnerID != s.Characters[actor].OwnerID || !inSurroundingArea(c.Position, s.Characters[actor].Position) {
 			continue
 		}
 		if c.DefinitionID == "sophie" {
@@ -682,7 +682,7 @@ func (s *State) processTurnEnd(playerID string) {
 }
 func (s *State) healNearby(source, amount int) {
 	for i := range s.Characters {
-		if s.Characters[i].HP > 0 && s.Characters[i].OwnerID == s.Characters[source].OwnerID && distance(s.Characters[i].Position, s.Characters[source].Position) <= 1 {
+		if s.Characters[i].HP > 0 && s.Characters[i].OwnerID == s.Characters[source].OwnerID && inSurroundingArea(s.Characters[i].Position, s.Characters[source].Position) {
 			s.Characters[i].HP = clamp(s.Characters[i].HP+amount, 0, s.Characters[i].MaxHP)
 		}
 	}
@@ -777,6 +777,9 @@ func clamp(value, low, high int) int {
 }
 func onBoard(p Position) bool    { return p.X >= 0 && p.X < Width && p.Y >= 0 && p.Y < Height }
 func distance(a, b Position) int { return int(math.Abs(float64(a.X-b.X)) + math.Abs(float64(a.Y-b.Y))) }
+func inSurroundingArea(a, b Position) bool {
+	return abs(a.X-b.X) <= 1 && abs(a.Y-b.Y) <= 1
+}
 func abs(value int) int {
 	if value < 0 {
 		return -value
