@@ -327,6 +327,24 @@ func TestPoisonDealsFortyDamageAtTurnEnd(t *testing.T) {
 	}
 }
 
+func TestTurnEndRecoveryIsAppliedBeforePoisonDamage(t *testing.T) {
+	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"shincho", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
+	s.TurnPlayerID = "a"
+	shincho := &s.Characters[0]
+	shincho.HP = 35
+	shincho.Effects = []string{"毒"}
+
+	s.advanceTurn("test")
+
+	// 先に10回復して45、その後に毒の40ダメージを受ける。
+	if shincho.HP != 5 {
+		t.Fatalf("hp=%d, want 5 (35 + 10 recovery - 40 poison)", shincho.HP)
+	}
+	if len(s.Events) < 3 || s.Events[len(s.Events)-3].Type != "TURN_END_RECOVERY" || s.Events[len(s.Events)-2].Type != "TURN_END_DAMAGE" {
+		t.Fatalf("turn-end event order=%v", s.Events)
+	}
+}
+
 func TestTurnEndProcessingPhasePrecedesNextTurn(t *testing.T) {
 	s := fixture()
 	s.Characters[0].Effects = []string{"毒"}

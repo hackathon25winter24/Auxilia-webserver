@@ -123,6 +123,25 @@ func (s *State) ignoresDebuffTiles(character int) bool {
 }
 
 func (s *State) processTurnEnd(playerID string) {
+	// 同時に解決されるターン終了時効果は、回復をすべて適用してから
+	// ダメージを適用する。途中のHPで勝敗判定は行わない。
+	healedTargets := 0
+	healedAmount := 0
+	for i, c := range s.Characters {
+		if c.HP <= 0 || c.OwnerID != playerID {
+			continue
+		}
+		boost := s.passiveBoost(i)
+		if turnHeal := passiveFor(c.DefinitionID).TurnHeal; turnHeal > 0 {
+			targets, amount := s.healNearby(i, turnHeal+boost)
+			healedTargets += targets
+			healedAmount += amount
+		}
+	}
+	if healedAmount > 0 {
+		s.commit("TURN_END_RECOVERY", fmt.Sprintf("パッシブにより%d体を合計%d回復", healedTargets, healedAmount))
+	}
+
 	poisonedTargets := 0
 	poisonDamage := 0
 	gasPoisonedTargets := 0
@@ -157,22 +176,6 @@ func (s *State) processTurnEnd(playerID string) {
 	}
 	if gasPoisonedTargets > 0 {
 		s.commit("TURN_END_EFFECT", fmt.Sprintf("毒ガスマスにより%d体に毒を付与", gasPoisonedTargets))
-	}
-	healedTargets := 0
-	healedAmount := 0
-	for i, c := range s.Characters {
-		if c.HP <= 0 || c.OwnerID != playerID {
-			continue
-		}
-		boost := s.passiveBoost(i)
-		if turnHeal := passiveFor(c.DefinitionID).TurnHeal; turnHeal > 0 {
-			targets, amount := s.healNearby(i, turnHeal+boost)
-			healedTargets += targets
-			healedAmount += amount
-		}
-	}
-	if healedAmount > 0 {
-		s.commit("TURN_END_RECOVERY", fmt.Sprintf("パッシブにより%d体を合計%d回復", healedTargets, healedAmount))
 	}
 }
 func (s *State) healNearby(source, amount int) (int, int) {
