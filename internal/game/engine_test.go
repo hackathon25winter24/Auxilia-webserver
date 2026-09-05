@@ -268,6 +268,25 @@ func TestSurrenderAwardsWinToOpponent(t *testing.T) {
 	}
 }
 
+func TestRecoveryAttackProducesRecoveryEvent(t *testing.T) {
+	s := fixture()
+	jude := &s.Characters[1]
+	jude.HP -= 30
+	err := s.ApplyAttack("a", Command{
+		ExpectedRevision: s.Revision,
+		CharacterID:      jude.ID,
+		AttackIndex:      2,
+		Target:           jude.Position,
+		Direction:        Position{1, 0},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.LastEvent.Type != "RECOVERED" {
+		t.Fatalf("event type=%q, want RECOVERED", s.LastEvent.Type)
+	}
+}
+
 func TestSurrenderIsAllowedOutsidePlayersTurn(t *testing.T) {
 	s := fixture()
 	s.TurnPlayerID = "a"
@@ -287,6 +306,7 @@ func TestMineDealsDamageAndDisappears(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.advanceTurn("test")
+	s.ExpireTurn(s.PhaseDeadline)
 	s.Characters[3].Position = Position{4, 2}
 	before := s.Characters[3].HP
 	if err := s.ApplyMove("b", Command{ExpectedRevision: s.Revision, CharacterID: "p2-c1", Target: Position{3, 2}}); err != nil {
@@ -304,6 +324,34 @@ func TestPoisonDealsFortyDamageAtTurnEnd(t *testing.T) {
 	s.advanceTurn("test")
 	if s.Characters[0].HP != before-40 {
 		t.Fatalf("hp=%d", s.Characters[0].HP)
+	}
+}
+
+func TestTurnEndProcessingPhasePrecedesNextTurn(t *testing.T) {
+	s := fixture()
+	s.Characters[0].Effects = []string{"毒"}
+	beforeHP := s.Characters[0].HP
+	beforeTurn := s.Turn
+
+	if err := s.EndTurn("a", s.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if s.Phase != "turn_end" || s.LastEvent.Type != "TURN_END_PROCESSING" {
+		t.Fatalf("phase=%q event=%q", s.Phase, s.LastEvent.Type)
+	}
+	if s.Turn != beforeTurn || s.TurnPlayerID != "a" {
+		t.Fatalf("processing中に手番が変化: turn=%d player=%q", s.Turn, s.TurnPlayerID)
+	}
+	if s.Characters[0].HP != beforeHP-40 {
+		t.Fatalf("processing中に毒が適用されていません: hp=%d", s.Characters[0].HP)
+	}
+
+	s.ExpireTurn(s.PhaseDeadline)
+	if s.Phase != "action" || s.LastEvent.Type != "TURN_ENDED" {
+		t.Fatalf("phase=%q event=%q", s.Phase, s.LastEvent.Type)
+	}
+	if s.Turn != beforeTurn+1 || s.TurnPlayerID != "b" {
+		t.Fatalf("手番が交代していません: turn=%d player=%q", s.Turn, s.TurnPlayerID)
 	}
 }
 

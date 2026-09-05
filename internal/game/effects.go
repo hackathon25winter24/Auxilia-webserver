@@ -123,16 +123,26 @@ func (s *State) ignoresDebuffTiles(character int) bool {
 }
 
 func (s *State) processTurnEnd(playerID string) {
+	poisonedTargets := 0
+	poisonDamage := 0
+	gasPoisonedTargets := 0
 	for i := range s.Characters {
 		c := &s.Characters[i]
 		if c.OwnerID != playerID || c.HP <= 0 {
 			continue
 		}
 		if s.hasEffect(i, "毒") {
+			before := c.HP
 			c.HP = clamp(c.HP-40, 0, c.MaxHP)
+			poisonedTargets++
+			poisonDamage += before - c.HP
 		}
 		if tile := s.tileAt(c.Position); tile >= 0 && s.TileEffects[tile].Type == "毒ガス" && !s.ignoresDebuffTiles(i) {
+			alreadyPoisoned := s.hasEffect(i, "毒")
 			s.addEffect(i, "毒")
+			if !alreadyPoisoned && s.hasEffect(i, "毒") {
+				gasPoisonedTargets++
+			}
 		}
 		effects := c.Effects[:0]
 		for _, effect := range c.Effects {
@@ -142,20 +152,41 @@ func (s *State) processTurnEnd(playerID string) {
 		}
 		c.Effects = effects
 	}
+	if poisonedTargets > 0 {
+		s.commit("TURN_END_DAMAGE", fmt.Sprintf("%d体が毒により合計%dダメージ", poisonedTargets, poisonDamage))
+	}
+	if gasPoisonedTargets > 0 {
+		s.commit("TURN_END_EFFECT", fmt.Sprintf("毒ガスマスにより%d体に毒を付与", gasPoisonedTargets))
+	}
+	healedTargets := 0
+	healedAmount := 0
 	for i, c := range s.Characters {
 		if c.HP <= 0 || c.OwnerID != playerID {
 			continue
 		}
 		boost := s.passiveBoost(i)
 		if turnHeal := passiveFor(c.DefinitionID).TurnHeal; turnHeal > 0 {
-			s.healNearby(i, turnHeal+boost)
+			targets, amount := s.healNearby(i, turnHeal+boost)
+			healedTargets += targets
+			healedAmount += amount
 		}
+	}
+	if healedAmount > 0 {
+		s.commit("TURN_END_RECOVERY", fmt.Sprintf("パッシブにより%d体を合計%d回復", healedTargets, healedAmount))
 	}
 }
-func (s *State) healNearby(source, amount int) {
+func (s *State) healNearby(source, amount int) (int, int) {
+	targets := 0
+	total := 0
 	for i := range s.Characters {
 		if s.Characters[i].HP > 0 && s.Characters[i].OwnerID == s.Characters[source].OwnerID && inSurroundingArea(s.Characters[i].Position, s.Characters[source].Position) {
+			before := s.Characters[i].HP
 			s.Characters[i].HP = clamp(s.Characters[i].HP+amount, 0, s.Characters[i].MaxHP)
+			if healed := s.Characters[i].HP - before; healed > 0 {
+				targets++
+				total += healed
+			}
 		}
 	}
+	return targets, total
 }

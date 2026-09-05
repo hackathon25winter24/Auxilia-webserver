@@ -9,11 +9,12 @@ import (
 )
 
 const (
-	Width        = 8
-	Height       = 5
-	MaxCost      = 50
-	MaxBaseHP    = 400
-	TurnDuration = 90 * time.Second
+	Width           = 8
+	Height          = 5
+	MaxCost         = 50
+	MaxBaseHP       = 400
+	TurnDuration    = 90 * time.Second
+	TurnEndDuration = 2 * time.Second
 )
 
 var (
@@ -53,8 +54,9 @@ type TileEffect struct {
 	OwnerID  string   `json:"ownerId"`
 }
 type Event struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Sequence uint64 `json:"sequence"`
+	Type     string `json:"type"`
+	Text     string `json:"text"`
 }
 type State struct {
 	MatchID        string       `json:"matchId"`
@@ -68,6 +70,8 @@ type State struct {
 	BlockedCells   []Position   `json:"blockedCells"`
 	TurnPlayerID   string       `json:"turnPlayerId"`
 	Turn           int          `json:"turn"`
+	Phase          string       `json:"phase"`
+	PhaseDeadline  time.Time    `json:"phaseDeadline,omitempty"`
 	TurnDeadline   time.Time    `json:"turnDeadline"`
 	ServerTime     time.Time    `json:"serverTime,omitempty"`
 	WinnerID       string       `json:"winnerId,omitempty"`
@@ -93,13 +97,17 @@ func NewPendingState(id string, players [2]Player, selections [2][]string) *Stat
 }
 
 func newState(id string, players [2]Player, selections [2][]string, started bool) *State {
-	lastEvent := Event{Type: "MATCH_FOUND", Text: "対戦相手が見つかりました"}
+	lastEvent := Event{Sequence: 1, Type: "MATCH_FOUND", Text: "対戦相手が見つかりました"}
 	var deadline time.Time
 	if started {
-		lastEvent = Event{Type: "MATCH_STARTED", Text: "対戦開始"}
+		lastEvent = Event{Sequence: 1, Type: "MATCH_STARTED", Text: "対戦開始"}
 		deadline = time.Now().Add(TurnDuration)
 	}
-	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: firstPlayerID(id, players, selections), Turn: 1, TurnDeadline: deadline, LastEvent: lastEvent}
+	phase := "waiting"
+	if started {
+		phase = "action"
+	}
+	s := &State{MatchID: id, Revision: 1, Started: started, Players: players, TurnPlayerID: firstPlayerID(id, players, selections), Turn: 1, Phase: phase, TurnDeadline: deadline, LastEvent: lastEvent}
 	s.Players[0].Cost, s.Players[1].Cost = MaxCost, MaxCost
 	s.EnsureBases()
 	// 編成画面の1・2・3番目を、戦闘画面でも上・中・下の順に並べる。
@@ -166,11 +174,12 @@ func (s *State) Ready(playerID string) error {
 	}
 	s.ReadyPlayerIDs = append(s.ReadyPlayerIDs, playerID)
 	s.Revision++
-	s.LastEvent = Event{Type: "PLAYER_READY", Text: "相手を待っています"}
+	s.LastEvent = Event{Sequence: s.Revision, Type: "PLAYER_READY", Text: "相手を待っています"}
 	if len(s.ReadyPlayerIDs) == 2 {
 		s.Started = true
+		s.Phase = "action"
 		s.TurnDeadline = time.Now().Add(TurnDuration)
-		s.LastEvent = Event{Type: "MATCH_STARTED", Text: "対戦開始"}
+		s.LastEvent = Event{Sequence: s.Revision, Type: "MATCH_STARTED", Text: "対戦開始"}
 		s.Events = append(s.Events, s.LastEvent)
 	}
 	return nil
@@ -189,7 +198,7 @@ func (s *State) CancelReady(playerID string) error {
 		}
 		s.ReadyPlayerIDs = append(s.ReadyPlayerIDs[:i], s.ReadyPlayerIDs[i+1:]...)
 		s.Revision++
-		s.LastEvent = Event{Type: "PLAYER_READY_CANCELLED", Text: "対戦開始をキャンセルしました"}
+		s.LastEvent = Event{Sequence: s.Revision, Type: "PLAYER_READY_CANCELLED", Text: "対戦開始をキャンセルしました"}
 		s.record(s.LastEvent)
 		break
 	}
@@ -314,7 +323,11 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return ErrInvalidAction
 	}
 	s.spend(playerID, attackCost)
-	s.commit("ATTACKED", fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected))
+	eventType := "ATTACKED"
+	if a.Power < 0 {
+		eventType = "RECOVERED"
+	}
+	s.commit(eventType, fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected))
 	s.checkWinner()
 	return nil
 }
@@ -324,6 +337,9 @@ func (s *State) EndTurn(playerID string, expected uint64) error {
 	}
 	if s.Revision != expected {
 		return ErrStaleRevision
+	}
+	if s.Phase == "turn_end" {
+		return ErrInvalidAction
 	}
 	if s.TurnPlayerID != playerID {
 		return ErrNotYourTurn
@@ -354,16 +370,34 @@ func (s *State) Surrender(playerID string, expected uint64) error {
 	return nil
 }
 func (s *State) ExpireTurn(now time.Time) {
-	if s.Started && !s.Finished && now.After(s.TurnDeadline) {
-		s.advanceTurn("90秒経過によりターン交代")
+	if !s.Started || s.Finished {
+		return
+	}
+	if s.Phase == "turn_end" {
+		if !now.Before(s.PhaseDeadline) {
+			s.completeTurnChange()
+		}
+		return
+	}
+	if now.After(s.TurnDeadline) {
+		s.beginTurnEnd("90秒経過によりターン終了後処理")
 	}
 }
 func (s *State) advanceTurn(reason string) {
+	s.beginTurnEnd(reason)
+}
+func (s *State) beginTurnEnd(reason string) {
 	s.processTurnEnd(s.TurnPlayerID)
 	s.checkWinner()
 	if s.Finished {
 		return
 	}
+	s.Phase = "turn_end"
+	s.PhaseDeadline = time.Now().Add(TurnEndDuration)
+	s.TurnDeadline = time.Time{}
+	s.commit("TURN_END_PROCESSING", reason)
+}
+func (s *State) completeTurnChange() {
 	if s.Players[0].ID == s.TurnPlayerID {
 		s.TurnPlayerID = s.Players[1].ID
 	} else {
@@ -373,8 +407,10 @@ func (s *State) advanceTurn(reason string) {
 	for i := range s.Players {
 		s.Players[i].Cost = MaxCost
 	}
+	s.Phase = "action"
+	s.PhaseDeadline = time.Time{}
 	s.TurnDeadline = time.Now().Add(TurnDuration)
-	s.commit("TURN_ENDED", reason)
+	s.commit("TURN_ENDED", "ターン終了後処理が完了し、手番が交代しました")
 }
 func (s *State) validate(playerID string, c Command) error {
 	if !s.Started || s.Finished {
@@ -382,6 +418,9 @@ func (s *State) validate(playerID string, c Command) error {
 	}
 	if s.Revision != c.ExpectedRevision {
 		return ErrStaleRevision
+	}
+	if s.Phase == "turn_end" {
+		return ErrInvalidAction
 	}
 	if s.TurnPlayerID != playerID {
 		return ErrNotYourTurn
@@ -454,7 +493,7 @@ func (s *State) record(e Event) {
 }
 func (s *State) commit(t, text string) {
 	s.Revision++
-	s.LastEvent = Event{Type: t, Text: text}
+	s.LastEvent = Event{Sequence: s.Revision, Type: t, Text: text}
 	s.record(s.LastEvent)
 }
 func (s *State) checkWinner() {
