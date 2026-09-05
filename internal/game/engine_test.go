@@ -268,6 +268,17 @@ func TestSurrenderAwardsWinToOpponent(t *testing.T) {
 	}
 }
 
+func TestSurrenderIsAllowedOutsidePlayersTurn(t *testing.T) {
+	s := fixture()
+	s.TurnPlayerID = "a"
+	if err := s.Surrender("b", s.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Finished || s.WinnerID != "a" {
+		t.Fatalf("finished=%v winner=%q", s.Finished, s.WinnerID)
+	}
+}
+
 func TestMineDealsDamageAndDisappears(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"berenice", "jude", "dana"}, {"sophie", "chiyo", "aoi"}})
 	s.TurnPlayerID = "a"
