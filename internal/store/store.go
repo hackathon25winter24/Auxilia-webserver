@@ -35,12 +35,13 @@ func (g Guest) Selection() []string {
 }
 
 type Match struct {
-	ID        string `gorm:"primaryKey;size:64"`
-	Revision  uint64 `gorm:"not null"`
-	Status    string `gorm:"size:16;index;not null"`
-	StateJSON string `gorm:"type:longtext;not null"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID           string `gorm:"primaryKey;size:64"`
+	Revision     uint64 `gorm:"not null"`
+	Status       string `gorm:"size:16;index;not null"`
+	StateJSON    string `gorm:"type:longtext;not null"`
+	UsageCounted bool   `gorm:"not null;default:false"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (Match) TableName() string { return "web_matches" }
@@ -53,10 +54,26 @@ type ProcessedCommand struct {
 
 func (ProcessedCommand) TableName() string { return "web_processed_commands" }
 
+type CharacterUsage struct {
+	CharacterID string `gorm:"primaryKey;size:64"`
+	UseCount    uint64 `gorm:"not null;default:0"`
+	UpdatedAt   time.Time
+}
+
+func (CharacterUsage) TableName() string { return "web_character_usages" }
+
+type UsageSummary struct {
+	ID              string `gorm:"primaryKey;size:32"`
+	PlayerPickCount uint64 `gorm:"not null;default:0"`
+	UpdatedAt       time.Time
+}
+
+func (UsageSummary) TableName() string { return "web_usage_summaries" }
+
 type Store struct{ db *gorm.DB }
 
 func New(db *gorm.DB) (*Store, error) {
-	if err := db.AutoMigrate(&Guest{}, &Match{}, &ProcessedCommand{}); err != nil {
+	if err := db.AutoMigrate(&Guest{}, &Match{}, &ProcessedCommand{}, &CharacterUsage{}, &UsageSummary{}); err != nil {
 		return nil, err
 	}
 	return &Store{db: db}, nil
@@ -156,8 +173,18 @@ func (s *Store) ReadyMatch(matchID, guestID string) (*game.State, error) {
 		if err != nil {
 			return err
 		}
+		wasStarted := parsed.Started
 		if err := parsed.Ready(guestID); err != nil {
 			return err
+		}
+		if !wasStarted && parsed.Started && !m.UsageCounted {
+			if err := recordCharacterUsage(tx, parsed.Characters); err != nil {
+				return err
+			}
+			if err := tx.Model(&m).Update("usage_counted", true).Error; err != nil {
+				return err
+			}
+			m.UsageCounted = true
 		}
 		if err := saveState(tx, &m, parsed); err != nil {
 			return err
@@ -167,6 +194,43 @@ func (s *Store) ReadyMatch(matchID, guestID string) (*game.State, error) {
 		return nil
 	})
 	return state, normalize(err)
+}
+
+func recordCharacterUsage(tx *gorm.DB, characters []game.Character) error {
+	for _, character := range characters {
+		usage := CharacterUsage{CharacterID: character.DefinitionID, UseCount: 1}
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "character_id"}},
+			DoUpdates: clause.Assignments(map[string]any{"use_count": gorm.Expr("use_count + ?", 1)}),
+		}).Create(&usage).Error; err != nil {
+			return err
+		}
+	}
+	summary := UsageSummary{ID: "global", PlayerPickCount: 2}
+	return tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.Assignments(map[string]any{"player_pick_count": gorm.Expr("player_pick_count + ?", 2)}),
+	}).Create(&summary).Error
+}
+
+func (s *Store) CharacterUsageCounts() (map[string]uint64, uint64, error) {
+	var rows []CharacterUsage
+	if err := s.db.Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	counts := make(map[string]uint64, len(rows))
+	for _, row := range rows {
+		counts[row.CharacterID] = row.UseCount
+	}
+	var summary UsageSummary
+	err := s.db.First(&summary, "id = ?", "global").Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return counts, 0, nil
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	return counts, summary.PlayerPickCount, nil
 }
 
 func (s *Store) CancelReadyMatch(matchID, guestID string) (*game.State, error) {

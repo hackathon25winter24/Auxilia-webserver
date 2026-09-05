@@ -43,3 +43,20 @@ func TestCORSRejectsUnknownOrigin(t *testing.T) {
 		t.Fatalf("unexpected Access-Control-Allow-Origin = %q", got)
 	}
 }
+
+func TestCharacterResponsesReturnRawUsageAndStartedMatchCounts(t *testing.T) {
+	responses := characterResponses(map[string]uint64{"sophie": 3, "sena": 1}, 2)
+	byID := make(map[string]characterResponse, len(responses))
+	for _, response := range responses {
+		byID[response.ID] = response
+	}
+	if got := byID["sophie"]; got.UsageCount != 3 || got.TotalPickCount != 2 {
+		t.Fatalf("sophie usage = %d / %d picks, want 3 / 2", got.UsageCount, got.TotalPickCount)
+	}
+	if got := byID["sena"]; got.UsageCount != 1 || got.TotalPickCount != 2 {
+		t.Fatalf("sena usage = %d / %d picks, want 1 / 2", got.UsageCount, got.TotalPickCount)
+	}
+	if got := byID["jude"]; got.UsageCount != 0 || got.TotalPickCount != 2 {
+		t.Fatalf("jude usage = %d / %d picks, want 0 / 2", got.UsageCount, got.TotalPickCount)
+	}
+}

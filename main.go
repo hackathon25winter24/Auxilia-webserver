@@ -44,7 +44,7 @@ func main() {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, map[string]string{"status": "ok", "database": "mariadb"})
 	})
-	mux.HandleFunc("GET /api/characters", characters)
+	mux.HandleFunc("GET /api/characters", s.characters)
 	mux.HandleFunc("POST /api/guests", s.join)
 	mux.HandleFunc("GET /api/me", s.auth(s.me))
 	mux.HandleFunc("PUT /api/me/selection", s.auth(s.selection))
@@ -98,7 +98,29 @@ func openDatabase() (*gorm.DB, error) {
 	return db, nil
 }
 
-func characters(w http.ResponseWriter, r *http.Request) { write(w, 200, game.Definitions) }
+type characterResponse struct {
+	game.CharacterDefinition
+	UsageCount     uint64 `json:"usageCount"`
+	TotalPickCount uint64 `json:"totalPickCount"`
+}
+
+func (s *service) characters(w http.ResponseWriter, r *http.Request) {
+	counts, totalPickCount, err := s.store.CharacterUsageCounts()
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	write(w, 200, characterResponses(counts, totalPickCount))
+}
+
+func characterResponses(counts map[string]uint64, totalPickCount uint64) []characterResponse {
+	response := make([]characterResponse, 0, len(game.Definitions))
+	for _, definition := range game.Definitions {
+		count := counts[definition.ID]
+		response = append(response, characterResponse{CharacterDefinition: definition, UsageCount: count, TotalPickCount: totalPickCount})
+	}
+	return response
+}
 func (s *service) join(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Name string `json:"name"`
