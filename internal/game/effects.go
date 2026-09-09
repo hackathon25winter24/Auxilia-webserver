@@ -182,7 +182,7 @@ func (s *State) healNearby(source, amount int) (int, int) {
 	targets := 0
 	total := 0
 	for i := range s.Characters {
-		if s.Characters[i].HP > 0 && s.Characters[i].OwnerID == s.Characters[source].OwnerID && inSurroundingArea(s.Characters[i].Position, s.Characters[source].Position) {
+		if !(i == source && passiveFor(s.Characters[source].DefinitionID).ExcludeSelf) && s.Characters[i].HP > 0 && s.Characters[i].OwnerID == s.Characters[source].OwnerID && inSurroundingArea(s.Characters[i].Position, s.Characters[source].Position) {
 			before := s.Characters[i].HP
 			s.Characters[i].HP = clamp(s.Characters[i].HP+amount, 0, s.Characters[i].MaxHP)
 			if healed := s.Characters[i].HP - before; healed > 0 {

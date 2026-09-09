@@ -68,26 +68,26 @@ var Definitions = []CharacterDefinition{
 	{ID: "tsukiha", Name: "月葉", Image: "Tsukiha_mini.png", Portrait: "Tsukiha.png", MaxHP: 100, MoveCost: 3, MoveRange: 4, Attacks: [3]AttackDefinition{func() AttackDefinition {
 		a := atk("忍法：手裏剣投げの術・近", 4, 10, "enemy", p(Position{1, -1}, Position{2, 0}, Position{1, 1}))
 		a.Effect = "出血"
-		a.EffectChance = 10
+		a.EffectChance = 30
 		return a
 	}(), func() AttackDefinition {
 		a := atk("忍法：手裏剣投げの術・遠", 6, 10, "enemy", p(Position{2, -1}, Position{3, 0}, Position{2, 1}))
 		a.Effect = "出血"
-		a.EffectChance = 10
+		a.EffectChance = 20
 		return a
 	}(), func() AttackDefinition {
 		a := atk("忍法：まきびし投げの術", 10, 0, "cell", adjacent)
 		a.Tile = "まきびし"
 		return a
 	}()}},
-	{ID: "aoi", Name: "扇衣", Image: "Aoi_mini.png", Portrait: "Aoi.png", MaxHP: 250, MoveCost: 8, MoveRange: 2, Attacks: [3]AttackDefinition{atk("汐汲～しおくみ～", 10, 20, "enemy", p(Position{1, 0}, Position{0, 1}, Position{0, -1})), atk("女伊達～おんなだて～", 20, 40, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})), atk("鷺娘～さぎむすめ～", 30, 60, "enemy", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))}},
-	{ID: "sena", Name: "星凪", Image: "Sena_mini.png", Portrait: "Sena.png", MaxHP: 200, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
+	{ID: "aoi", Name: "扇衣", Image: "Aoi_mini.png", Portrait: "Aoi.png", MaxHP: 250, MoveCost: 8, MoveRange: 2, Attacks: [3]AttackDefinition{atk("汐汲～しおくみ～", 10, 20, "enemy", p(Position{1, 0}, Position{0, 1}, Position{0, -1})), atk("女伊達～おんなだて～", 20, 0, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{0, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1})), atk("鷺娘～さぎむすめ～", 20, -40, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{0, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))}},
+	{ID: "sena", Name: "星凪", Image: "Sena_mini.png", Portrait: "Sena.png", MaxHP: 150, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
 		a := atk("一条流槍術：衝き", 15, 40, "enemy", p(Position{2, 0}))
 		a.Effect = "出血"
 		a.EffectChance = 50
 		return a
 	}(), atk("一条流槍術：掃い", 20, 60, "enemy", p(Position{2, -1}, Position{2, 0}, Position{2, 1})), func() AttackDefinition {
-		a := atk("一条流槍術：薙ぎ", 30, 100, "enemy", p(Position{1, 0}, Position{2, 0}, Position{3, 0}))
+		a := atk("一条流槍術：薙ぎ", 30, 90, "enemy", p(Position{2, 0}, Position{3, 0}))
 		a.Effect = "出血"
 		a.EffectChance = 10
 		return a
@@ -96,7 +96,7 @@ var Definitions = []CharacterDefinition{
 		a := atk("地雷設置", 15, 0, "cell", adjacent)
 		a.Tile = "地雷"
 		return a
-	}(), atk("爆破！", 25, 60, "enemy", p(Position{1, 0}, Position{2, -1}, Position{2, 0}, Position{2, 1}, Position{3, 0})), atk("小型爆弾", 20, 40, "enemy", adjacent)}},
+	}(), atk("爆破！", 25, 60, "enemy", p(Position{1, 0}, Position{2, -1}, Position{2, 0}, Position{2, 1}, Position{3, 0})), atk("小型爆弾", 20, 60, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0}))}},
 	{ID: "chiyo", Name: "千代", Image: "Chiyo_mini.png", Portrait: "Chiyo.png", MaxHP: 150, MoveCost: 5, MoveRange: 3, Attacks: [3]AttackDefinition{atk("一文字斬り", 10, 30, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})), func() AttackDefinition {
 		a := atk("袈裟斬り", 20, 60, "enemy", adjacent)
 		a.Effect = "出血"
@@ -136,7 +136,7 @@ var passiveDefinitions = map[string][2]string{
 	"jude":     {"受け身", "自身が受けるダメージを20軽減する。"},
 	"nadia":    {"対処番号04：過量使用", "攻撃が当たった敵に追加判定を行い、20%の確率で毒を与える。"},
 	"tsukiha":  {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
-	"aoi":      {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる味方のHPを30回復する。"},
+	"aoi":      {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる自身以外の味方のHPを30回復する。"},
 	"sena":     {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
 	"berenice": {"爆弾処理", "地雷マスに乗ってもダメージを受けない。"},
 	"chiyo":    {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
@@ -163,7 +163,7 @@ var passiveValues = map[string]PassiveValues{
 	"sophie":  {AttackBoost: 20, ExcludeSelf: true},
 	"jude":    {DamageReduction: 20},
 	"nadia":   {ExtraEffectChance: 20},
-	"aoi":     {TurnHeal: 30},
+	"aoi":     {TurnHeal: 30, ExcludeSelf: true},
 	"sena":    {IgnorePassiveReduce: true},
 	"chiyo":   {FullHPAttackBoost: 50},
 	"shincho": {AttackBoost: 10, TurnHeal: 10},

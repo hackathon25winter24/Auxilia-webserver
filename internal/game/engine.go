@@ -13,7 +13,7 @@ const (
 	Height          = 5
 	MaxCost         = 50
 	MaxBaseHP       = 400
-	TurnDuration    = 90 * time.Second
+	TurnDuration    = 120 * time.Second
 	TurnEndDuration = 2 * time.Second
 )
 
@@ -327,7 +327,13 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	if a.Power < 0 {
 		eventType = "RECOVERED"
 	}
-	s.commit(eventType, fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected))
+	message := fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected)
+	if a.Power == 0 && a.Effect == "" && !a.ClearDebuffs {
+		// 女伊達は仕様確定まで効果なし。被弾音も再生させない。
+		eventType = "SKILL_USED"
+		message = fmt.Sprintf("%sの%s：効果なし", s.Characters[i].Name, a.Name)
+	}
+	s.commit(eventType, message)
 	s.checkWinner()
 	return nil
 }
@@ -380,7 +386,7 @@ func (s *State) ExpireTurn(now time.Time) {
 		return
 	}
 	if now.After(s.TurnDeadline) {
-		s.beginTurnEnd("90秒経過によりターン終了後処理")
+		s.beginTurnEnd("120秒経過によりターン終了後処理")
 	}
 }
 func (s *State) advanceTurn(reason string) {
