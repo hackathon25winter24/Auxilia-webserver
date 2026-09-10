@@ -28,20 +28,21 @@ type Position struct {
 	Y int `json:"y"`
 }
 type Character struct {
-	Wriggling      bool     `json:"wriggling,omitempty"`
-	TemporaryBuffs []string `json:"temporaryBuffs,omitempty"`
-	ID             string   `json:"id"`
-	DefinitionID   string   `json:"definitionId"`
-	OwnerID        string   `json:"ownerId"`
-	Name           string   `json:"name"`
-	HP             int      `json:"hp"`
-	MaxHP          int      `json:"maxHP"`
-	Position       Position `json:"position"`
-	Effects        []string `json:"effects"`
-	ReviveUsed     bool     `json:"reviveUsed,omitempty"`
-	DepartureUsed  bool     `json:"departureUsed,omitempty"`
-	DrankTurn      int      `json:"drankTurn,omitempty"`
-	HangoverTurn   int      `json:"hangoverTurn,omitempty"`
+	UsedSkills     map[string]int `json:"usedSkills,omitempty"`
+	Wriggling      bool           `json:"wriggling,omitempty"`
+	TemporaryBuffs []string       `json:"temporaryBuffs,omitempty"`
+	ID             string         `json:"id"`
+	DefinitionID   string         `json:"definitionId"`
+	OwnerID        string         `json:"ownerId"`
+	Name           string         `json:"name"`
+	HP             int            `json:"hp"`
+	MaxHP          int            `json:"maxHP"`
+	Position       Position       `json:"position"`
+	Effects        []string       `json:"effects"`
+	ReviveUsed     bool           `json:"reviveUsed,omitempty"`
+	DepartureUsed  bool           `json:"departureUsed,omitempty"`
+	DrankTurn      int            `json:"drankTurn,omitempty"`
+	HangoverTurn   int            `json:"hangoverTurn,omitempty"`
 }
 type Player struct {
 	ID   string `json:"id"`
@@ -321,6 +322,9 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return ErrInvalidAction
 	}
 	a := d.Attacks[c.AttackIndex]
+	if a.OncePerTurn && s.Characters[i].UsedSkills[a.Name] == s.Turn {
+		return errors.New("この技はこのターン使用済みです")
+	}
 	if s.hasEffect(i, "麻痺") {
 		return ErrInvalidAction
 	}
@@ -459,6 +463,12 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	}
 	if affected == 0 {
 		return ErrInvalidAction
+	}
+	if a.OncePerTurn {
+		if s.Characters[i].UsedSkills == nil {
+			s.Characters[i].UsedSkills = map[string]int{}
+		}
+		s.Characters[i].UsedSkills[a.Name] = s.Turn
 	}
 	s.spend(playerID, attackCost)
 	eventType := "ATTACKED"

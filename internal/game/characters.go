@@ -1,6 +1,7 @@
 package game
 
 type AttackDefinition struct {
+	OncePerTurn  bool       `json:"oncePerTurn,omitempty"`
 	Name         string     `json:"name"`
 	Cost         int        `json:"cost"`
 	Power        int        `json:"power"`
@@ -46,7 +47,7 @@ func atk(name string, cost, power int, target string, pattern []Position) Attack
 
 var adjacent = p(Position{1, 0})
 var Definitions = []CharacterDefinition{
-	{ID: "suima", Name: "睡魔", Image: "suima_mini.png", Portrait: "suima.png", MaxHP: 140, MoveCost: 10, MoveRange: 1,
+	{ID: "suima", Name: "睡魔", Image: "suima_mini.png", Portrait: "suima.png", MaxHP: 160, MoveCost: 10, MoveRange: 1,
 		Attacks: [3]AttackDefinition{
 			func() AttackDefinition {
 				a := atk("進捗を錬成", 20, 20, "enemy", p(Position{1, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}))
@@ -198,7 +199,7 @@ var Definitions = []CharacterDefinition{
 }
 
 var passiveDefinitions = map[string][2]string{
-	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。初回は活動状態。"},
+	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。"},
 	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。"},
 	"wellbulus": {"復活", "戦闘中に一度だけ、戦闘不能になったときHP50で復活する。"},
 	"sophie":    {"範囲支援 sowing～播種～", "戦闘開始時に味方全体に俊足を与え、戦闘離脱時に敵全体に鈍足を与える。"},
@@ -242,6 +243,15 @@ func passiveFor(id string) PassiveValues { return passiveValues[id] }
 
 func init() {
 	for i := range Definitions {
+		for j := range Definitions[i].Attacks {
+			a := &Definitions[i].Attacks[j]
+			if (Definitions[i].ID == "kasuima" && j == 0) || (Definitions[i].ID == "suima" && j == 1) {
+				a.OncePerTurn = true
+			}
+		}
+		if Definitions[i].ID == "suima" && Definitions[i].AlternateAttacks != nil {
+			Definitions[i].AlternateAttacks[2].OncePerTurn = true
+		}
 		passive := passiveDefinitions[Definitions[i].ID]
 		Definitions[i].PassiveName = passive[0]
 		Definitions[i].PassiveDescription = passive[1]
