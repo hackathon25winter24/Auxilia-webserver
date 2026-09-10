@@ -25,19 +25,21 @@ func TestWellbulusDispelAndHeal(t *testing.T) {
 	for i := range s.Characters {
 		s.Characters[i].Effects = []string{"威力上昇", "俊足", "俊敏化", "毒"}
 	}
+	s.Characters[0].Effects = nil
+	s.Characters[1].Position = Position{0, 4}
 	before := s.Characters[3].HP
 	if err := wellbulusAct(s, 0, Position{4, 2}); err != nil {
 		t.Fatal(err)
 	}
-	if s.Characters[3].HP != before || !reflect.DeepEqual(s.Characters[3].Effects, []string{"毒"}) {
+	if s.Characters[3].HP != before-30 || !reflect.DeepEqual(s.Characters[3].Effects, []string{"毒"}) {
 		t.Fatal("dispel damaged or failed to remove buffs")
 	}
-	for _, i := range []int{0, 1, 4} {
+	for _, i := range []int{1, 5} {
 		if !s.hasEffect(i, "威力上昇") {
 			t.Fatalf("non-target %d lost buff", i)
 		}
 	}
-	if s.LastEvent.Type != "BUFFS_CLEARED" || s.cost("a") != 32 {
+	if s.LastEvent.Type != "ATTACKED" || s.cost("a") != 30 {
 		t.Fatal("wrong dispel event/cost")
 	}
 
@@ -48,7 +50,7 @@ func TestWellbulusDispelAndHeal(t *testing.T) {
 	if err := wellbulusAct(s, 2, Position{3, 2}); err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range []int{110, 100, 50, 50, 50, 50} {
+	for i, want := range []int{100, 100, 50, 50, 50, 50} {
 		if s.Characters[i].HP != want {
 			t.Errorf("heal target %d hp=%d want=%d", i, s.Characters[i].HP, want)
 		}
@@ -63,7 +65,7 @@ func TestImmutablePlacementAndPersistence(t *testing.T) {
 	if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
 		t.Fatal(err)
 	}
-	if len(s.TileEffects) != 1 || s.TileEffects[0].HP != 120 || s.cost("a") != 20 {
+	if len(s.TileEffects) != 1 || s.TileEffects[0].HP != 170 || s.cost("a") != 30 {
 		t.Fatal("placement failed")
 	}
 	raw, err := json.Marshal(s)
@@ -129,9 +131,9 @@ func TestImmutableDecayAndDestruction(t *testing.T) {
 	s := wellbulusFixture()
 	s.setTile(Position{4, 2}, "不変", "a")
 	before := s.Characters[3].HP
-	for i, player := range []string{"a", "b", "a"} {
+	for i, player := range []string{"a", "b", "a", "b"} {
 		s.processTurnEnd(player)
-		if i < 2 && s.TileEffects[0].HP != 120-50*(i+1) {
+		if i < 3 && s.TileEffects[0].HP != 170-50*(i+1) {
 			t.Fatal("wrong decay")
 		}
 	}
@@ -155,9 +157,13 @@ func TestImmutableCanBeAttackedByEitherSide(t *testing.T) {
 		if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
 			t.Fatal(err)
 		}
-		if s.TileEffects[0].HP != 60 {
+		if s.TileEffects[0].HP != 110 {
 			t.Fatal("wrong attack damage")
 		}
+		if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
+			t.Fatal(err)
+		}
+		s.Players[0].Cost = MaxCost
 		if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
 			t.Fatal(err)
 		}
@@ -183,11 +189,84 @@ func TestClearBuffsPreservesDebuffs(t *testing.T) {
 	}
 }
 
+func TestWellbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
+	s := wellbulusFixture()
+	s.Characters[1].HP, s.Characters[2].HP = 0, 0
+	s.Characters[3].Position = Position{6, 2}
+	s.Characters[4].Position = Position{4, 2}
+	s.TurnPlayerID = "b"
+	attack := func(state *State) error {
+		state.Players[1].Cost = MaxCost
+		return state.ApplyAttack("b", Command{CharacterID: state.Characters[4].ID, ExpectedRevision: state.Revision, AttackIndex: 2, Target: Position{3, 2}, Direction: Position{-1, 0}})
+	}
+	if err := attack(s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Finished || s.Characters[0].HP != 50 || !s.Characters[0].ReviveUsed || s.LastEvent.Type != "REVIVED" {
+		t.Fatal("revival must precede defeat")
+	}
+	raw, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored State
+	if err := json.Unmarshal(raw, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if err := attack(&restored); err != nil {
+		t.Fatal(err)
+	}
+	if !restored.Finished || restored.WinnerID != "b" || restored.Characters[0].HP != 0 {
+		t.Fatal("revival reused after reload")
+	}
+}
+
+func TestWellbulusRevivesFromPoisonAndMine(t *testing.T) {
+	for _, cause := range []string{"poison", "mine"} {
+		t.Run(cause, func(t *testing.T) {
+			s := wellbulusFixture()
+			s.Characters[0].HP = 30
+			var err error
+			if cause == "poison" {
+				s.Characters[0].Effects = []string{"毒"}
+				err = s.EndTurn("a", s.Revision)
+			} else {
+				s.setTile(Position{3, 1}, "地雷", "b")
+				err = s.ApplyMove("a", Command{CharacterID: s.Characters[0].ID, ExpectedRevision: s.Revision, Target: Position{3, 1}})
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.Characters[0].HP != 50 || !s.Characters[0].ReviveUsed {
+				t.Fatal("lethal damage did not trigger revival")
+			}
+		})
+	}
+}
+
+func TestWellbulusDispelHitsEverySurroundingEnemy(t *testing.T) {
+	for _, offset := range []Position{{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}, {2, 0}} {
+		s := wellbulusFixture()
+		s.Characters[1].Position = Position{0, 4}
+		s.Characters[3].Position = Position{3 + offset.X, 2 + offset.Y}
+		s.Characters[3].Effects = []string{"威力上昇", "毒"}
+		before := s.Characters[3].HP
+		err := wellbulusAct(s, 0, s.Characters[3].Position)
+		if offset.X == 2 {
+			if err == nil || s.Characters[3].HP != before {
+				t.Fatal("out-of-range attack accepted")
+			}
+		} else if err != nil || s.Characters[3].HP != before-30 || s.hasEffect(3, "威力上昇") || !s.hasEffect(3, "毒") {
+			t.Fatalf("wrong damage/dispel at %v", offset)
+		}
+	}
+}
+
 func TestImmutableDoesNotPreventActionsAndReceivesAreaDamage(t *testing.T) {
 	s := wellbulusFixture()
 	s.setTile(s.Characters[0].Position, "不変", "b")
 	s.Characters[0].HP = 50
-	if err := wellbulusAct(s, 2, s.Characters[0].Position); err != nil || s.Characters[0].HP != 110 {
+	if err := wellbulusAct(s, 2, s.Characters[0].Position); err != nil || s.Characters[0].HP != 100 {
 		t.Fatal("trapped character cannot heal")
 	}
 	s = wellbulusFixture()
@@ -199,7 +278,7 @@ func TestImmutableDoesNotPreventActionsAndReceivesAreaDamage(t *testing.T) {
 	if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
 		t.Fatal(err)
 	}
-	if s.Characters[3].HP != before-60 || s.TileEffects[0].HP != 60 {
+	if s.Characters[3].HP != before-60 || s.TileEffects[0].HP != 110 {
 		t.Fatal("attack must damage both enemy and tile")
 	}
 }

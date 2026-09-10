@@ -41,16 +41,16 @@ var adjacent = p(Position{1, 0})
 var Definitions = []CharacterDefinition{
 	{ID: "wellbulus", Name: "ウェルブルス", Image: "wellbulus_mini.png", Portrait: "wellbulus.png", MaxHP: 150, MoveCost: 5, MoveRange: 1, Attacks: [3]AttackDefinition{
 		func() AttackDefinition {
-			a := atk("栄枯盛衰", 20, 0, "enemy", p(Position{-1, 0}, Position{1, 0}, Position{0, -1}, Position{0, 1}))
+			a := atk("栄枯盛衰", 20, 30, "enemy", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))
 			a.ClearBuffs = true
 			return a
 		}(),
 		func() AttackDefinition {
-			a := atk("永久不変", 30, 0, "cell", adjacent)
+			a := atk("永久不変", 20, 0, "cell", adjacent)
 			a.Tile = "不変"
 			return a
 		}(),
-		atk("千変万化", 25, -60, "ally", p(Position{0, 0}, Position{-1, 0}, Position{1, 0}, Position{0, -1}, Position{0, 1})),
+		atk("千変万化", 25, -50, "ally", p(Position{0, 0}, Position{-1, 0}, Position{1, 0}, Position{0, -1}, Position{0, 1})),
 	}},
 	{ID: "sophie", Name: "ソフィー", Image: "Sophie_mini.png", Portrait: "Sophie.png", MaxHP: 100, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{atk("突き sprout～芽生え～", 10, 10, "enemy", adjacent), atk("範囲狙撃 growth～成長～", 20, 50, "enemy", p(Position{3, -1}, Position{3, 0}, Position{3, 1})), atk("集中狙撃 bloom～開花～", 50, 250, "enemy", p(Position{3, 0}))}},
 	{ID: "jude", Name: "ジュード", Image: "Jude_mini.png", Portrait: "Jude.png", MaxHP: 250, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
@@ -146,17 +146,18 @@ var Definitions = []CharacterDefinition{
 }
 
 var passiveDefinitions = map[string][2]string{
-	"sophie":   {"範囲支援 fruit～結実～", "周囲1マス以内にいる自身以外の味方の攻撃ダメージを20上昇させる。"},
-	"jude":     {"受け身", "自身が受けるダメージを20軽減する。"},
-	"nadia":    {"対処番号04：過量使用", "攻撃が当たった敵に追加判定を行い、20%の確率で毒を与える。"},
-	"tsukiha":  {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
-	"aoi":      {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる自身以外の味方のHPを30回復する。"},
-	"sena":     {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
-	"berenice": {"爆弾処理", "地雷マスに乗ってもダメージを受けない。"},
-	"chiyo":    {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
-	"shincho":  {":ganbare-:", "周囲1マス以内の味方の攻撃ダメージを10上昇させ、自身のターン終了時にHPを10回復する。"},
-	"zina":     {"補給拠点", "周囲1マス以内にいる味方のパッシブ効果値を20上昇させる。"},
-	"dana":     {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
+	"wellbulus": {"復活", "戦闘中に一度だけ、戦闘不能になったときHP50で復活する。"},
+	"sophie":    {"範囲支援 fruit～結実～", "周囲1マス以内にいる自身以外の味方の攻撃ダメージを20上昇させる。"},
+	"jude":      {"受け身", "自身が受けるダメージを20軽減する。"},
+	"nadia":     {"対処番号04：過量使用", "攻撃が当たった敵に追加判定を行い、20%の確率で毒を与える。"},
+	"tsukiha":   {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
+	"aoi":       {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる自身以外の味方のHPを30回復する。"},
+	"sena":      {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
+	"berenice":  {"爆弾処理", "地雷マスに乗ってもダメージを受けない。"},
+	"chiyo":     {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
+	"shincho":   {":ganbare-:", "周囲1マス以内の味方の攻撃ダメージを10上昇させ、自身のターン終了時にHPを10回復する。"},
+	"zina":      {"補給拠点", "周囲1マス以内にいる味方のパッシブ効果値を20上昇させる。"},
+	"dana":      {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
 }
 
 // PassiveValues contains every numeric value used by a character passive.

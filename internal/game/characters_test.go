@@ -41,7 +41,7 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 
 	// 仕様書/キャラ.md に記載された数値。回復量は内部表現に合わせて負数で表す。
 	want := map[string]characterNumbers{
-		"wellbulus": {150, 5, [3]attackNumbers{{20, 0, 0}, {30, 0, 0}, {25, -60, 0}}},
+		"wellbulus": {150, 5, [3]attackNumbers{{20, 30, 0}, {20, 0, 0}, {25, -50, 0}}},
 		"sophie":    {100, 10, [3]attackNumbers{{10, 10, 0}, {20, 50, 0}, {50, 250, 0}}},
 		"jude":      {250, 10, [3]attackNumbers{{10, 10, 30}, {20, 50, 0}, {30, -30, 0}}},
 		"nadia":     {200, 7, [3]attackNumbers{{10, 20, 20}, {20, 40, 40}, {30, 60, 60}}},

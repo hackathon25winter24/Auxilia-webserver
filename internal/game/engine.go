@@ -36,6 +36,7 @@ type Character struct {
 	MaxHP        int      `json:"maxHP"`
 	Position     Position `json:"position"`
 	Effects      []string `json:"effects"`
+	ReviveUsed   bool     `json:"reviveUsed,omitempty"`
 }
 type Player struct {
 	ID   string `json:"id"`
@@ -343,7 +344,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	if a.Power < 0 {
 		eventType = "RECOVERED"
 	}
-	if a.ClearBuffs {
+	if a.ClearBuffs && a.Power == 0 {
 		eventType = "BUFFS_CLEARED"
 	}
 	message := fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected)
@@ -522,6 +523,15 @@ func (s *State) commit(t, text string) {
 	s.record(s.LastEvent)
 }
 func (s *State) checkWinner() {
+	// 撃破・毒・地雷などの解決後、勝敗を決める前に一度だけ復活する。
+	for i := range s.Characters {
+		c := &s.Characters[i]
+		if c.DefinitionID == "wellbulus" && c.HP <= 0 && !c.ReviveUsed {
+			c.ReviveUsed = true
+			c.HP = min(c.MaxHP, 50+s.passiveBoost(i))
+			s.commit("REVIVED", fmt.Sprintf("%sがパッシブによりHP%dで復活", c.Name, c.HP))
+		}
+	}
 	alive := [2]int{}
 	for _, c := range s.Characters {
 		for i, p := range s.Players {

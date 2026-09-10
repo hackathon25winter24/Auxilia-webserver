@@ -101,7 +101,7 @@ func (s *State) baseAt(position Position) int {
 func (s *State) setTile(position Position, tileType, ownerID string) {
 	tile := TileEffect{Position: position, Type: tileType, OwnerID: ownerID}
 	if tileType == "不変" {
-		tile.HP = 120
+		tile.HP = 170
 	}
 	if i := s.tileAt(position); i >= 0 {
 		if s.TileEffects[i].Type == "不変" {
