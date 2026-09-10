@@ -39,20 +39,21 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 		attacks      [3]attackNumbers
 	}
 
-	// 仕様書/キャラ.md に記載された数値。回復量は内部表現に合わせて負数で表す。
+	// Auxilia-web/specification/rules.md の個別説明を基準とする。
+	// 2026-09-11の数値改定。効果・範囲の変更は別途対応。回復量は負数で表す。
 	want := map[string]characterNumbers{
 		"wellbulus": {150, 5, [3]attackNumbers{{20, 30, 0}, {20, 0, 0}, {25, -50, 0}}},
-		"sophie":    {100, 10, [3]attackNumbers{{10, 10, 0}, {20, 50, 0}, {50, 250, 0}}},
-		"jude":      {250, 10, [3]attackNumbers{{10, 10, 30}, {20, 50, 0}, {30, -30, 0}}},
-		"nadia":     {200, 7, [3]attackNumbers{{10, 20, 20}, {20, 40, 40}, {30, 60, 60}}},
+		"sophie":    {100, 10, [3]attackNumbers{{10, 20, 0}, {20, 80, 0}, {50, 250, 0}}},
+		"jude":      {250, 10, [3]attackNumbers{{20, 20, 30}, {20, 50, 0}, {30, -30, 0}}},
+		"nadia":     {200, 7, [3]attackNumbers{{10, 20, 20}, {20, 50, 40}, {30, 70, 60}}},
 		"tsukiha":   {100, 3, [3]attackNumbers{{4, 10, 30}, {6, 10, 20}, {10, 0, 0}}},
-		"aoi":       {250, 8, [3]attackNumbers{{10, 20, 0}, {20, 0, 0}, {20, -40, 0}}},
+		"aoi":       {250, 8, [3]attackNumbers{{20, 50, 0}, {30, 0, 0}, {20, -30, 0}}},
 		"sena":      {150, 10, [3]attackNumbers{{15, 40, 50}, {20, 60, 0}, {30, 90, 10}}},
-		"berenice":  {200, 6, [3]attackNumbers{{15, 0, 0}, {25, 60, 0}, {20, 60, 0}}},
-		"chiyo":     {150, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 200, 0}}},
-		"shincho":   {80, 15, [3]attackNumbers{{20, 220, 0}, {15, -40, 0}, {15, 0, 0}}},
-		"zina":      {150, 5, [3]attackNumbers{{20, 20, 30}, {20, 20, 60}, {30, 60, 0}}},
-		"dana":      {200, 10, [3]attackNumbers{{10, 0, 0}, {20, 20, 50}, {20, -30, 0}}},
+		"berenice":  {200, 7, [3]attackNumbers{{10, 0, 0}, {30, 60, 0}, {20, 50, 0}}},
+		"chiyo":     {150, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 220, 0}}},
+		"shincho":   {80, 15, [3]attackNumbers{{20, 240, 0}, {10, -40, 0}, {10, 0, 0}}},
+		"zina":      {200, 6, [3]attackNumbers{{20, 30, 40}, {20, 20, 80}, {30, 60, 0}}},
+		"dana":      {200, 9, [3]attackNumbers{{10, 0, 0}, {20, 20, 80}, {20, -30, 0}}},
 	}
 
 	if len(Definitions) != len(want) {
@@ -85,7 +86,7 @@ func TestPassiveNumericValuesMatchCharacterSpec(t *testing.T) {
 		"sena":    {IgnorePassiveReduce: true},
 		"chiyo":   {FullHPAttackBoost: 50},
 		"shincho": {AttackBoost: 10, TurnHeal: 10},
-		"zina":    {PassiveValueBoost: 20},
+		"zina":    {PassiveValueBoost: 10},
 	}
 	for id, want := range tests {
 		if got := passiveFor(id); got != want {

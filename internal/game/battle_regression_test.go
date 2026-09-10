@@ -77,8 +77,12 @@ func TestDanaPoisonObservedRates(t *testing.T) {
 				}
 			}
 			t.Logf("%s: %d/%d (%.2f%%)", mode, hits, trials, float64(hits)*100/trials)
-			if hits < 4700 || hits > 5300 {
-				t.Fatalf("observed rate differs from 50%%: %d/%d", hits, trials)
+			wantPercent := 50 // 毒ガスマスは50%、直接攻撃は改定後80%。
+			if mode == "attack" {
+				wantPercent = 80
+			}
+			if hits < (wantPercent-3)*trials/100 || hits > (wantPercent+3)*trials/100 {
+				t.Fatalf("observed rate differs from %d%%: %d/%d", wantPercent, hits, trials)
 			}
 		})
 	}

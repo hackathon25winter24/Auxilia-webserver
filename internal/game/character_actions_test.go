@@ -25,7 +25,7 @@ func TestAoiOnnadateHasNoEffectWhilePending(t *testing.T) {
 	if !reflect.DeepEqual(before, s.Characters) || !reflect.DeepEqual(bases, s.Bases) {
 		t.Fatal("pending skill changed characters or bases")
 	}
-	if s.cost("a") != 30 || s.LastEvent.Type != "SKILL_USED" {
+	if s.cost("a") != 20 || s.LastEvent.Type != "SKILL_USED" {
 		t.Fatalf("cost=%d event=%s", s.cost("a"), s.LastEvent.Type)
 	}
 }
@@ -46,11 +46,11 @@ func TestAoiRecoveryTargetsSurroundingAllies(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := 90
+			want := 80
 			if offset.X == 2 {
 				want = 50
 			}
-			if s.Characters[0].HP != 90 || s.Characters[1].HP != want || s.Characters[2].HP != 50 || s.Characters[3].HP != 50 {
+			if s.Characters[0].HP != 80 || s.Characters[1].HP != want || s.Characters[2].HP != 50 || s.Characters[3].HP != 50 {
 				t.Fatalf("direction=%v offset=%v characters=%v", direction, offset, s.Characters)
 			}
 			if s.cost("a") != 30 || s.LastEvent.Type != "RECOVERED" {
@@ -70,7 +70,7 @@ func TestSenaAndBereniceAttackFootprints(t *testing.T) {
 		{"sena sweep", "sena", 1, 60, []Position{{5, 1}, {5, 2}, {5, 3}}},
 		{"sena slash", "sena", 2, 90, []Position{{5, 2}, {6, 2}}},
 		{"berenice explosion", "berenice", 1, 60, []Position{{4, 2}, {5, 1}, {5, 2}, {5, 3}, {6, 2}}},
-		{"berenice small bomb", "berenice", 2, 60, []Position{{4, 1}, {4, 2}, {4, 3}, {5, 2}}},
+		{"berenice small bomb", "berenice", 2, 50, []Position{{4, 1}, {4, 2}, {4, 3}, {5, 2}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

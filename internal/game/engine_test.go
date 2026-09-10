@@ -128,8 +128,8 @@ func TestDanaReceivesDebuffTileDamageAndMoveCost(t *testing.T) {
 	if err := s.ApplyMove("a", Command{ExpectedRevision: s.Revision, CharacterID: dana.ID, Target: Position{3, 2}}); err != nil {
 		t.Fatal(err)
 	}
-	if spent := beforeCost - s.Players[0].Cost; spent != 12 {
-		t.Fatalf("まきびし上からの移動コスト=%d, want=12", spent)
+	if spent := beforeCost - s.Players[0].Cost; spent != 11 {
+		t.Fatalf("まきびし上からの移動コスト=%d, want=11", spent)
 	}
 
 	dana.Position = Position{2, 2}
@@ -202,7 +202,7 @@ func TestServerCalculatesDamage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Characters[3].HP != 80 {
+	if s.Characters[3].HP != 70 {
 		t.Fatalf("hp=%d", s.Characters[3].HP)
 	}
 }
@@ -397,7 +397,7 @@ func TestJudeReducesDamage(t *testing.T) {
 	if err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: "p1-c1", AttackIndex: 0, Target: Position{3, 0}}); err != nil {
 		t.Fatal(err)
 	}
-	if s.Characters[3].HP != before {
+	if s.Characters[3].HP != before-10 {
 		t.Fatalf("hp=%d", s.Characters[3].HP)
 	}
 }
