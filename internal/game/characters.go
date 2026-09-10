@@ -12,6 +12,7 @@ type AttackDefinition struct {
 	Tile         string     `json:"tile,omitempty"`
 	ClearDebuffs bool       `json:"clearDebuffs,omitempty"`
 	ClearBuffs   bool       `json:"clearBuffs,omitempty"`
+	AllyEffect   string     `json:"allyEffect,omitempty"`
 }
 type CharacterDefinition struct {
 	ID                 string              `json:"id"`
@@ -27,6 +28,10 @@ type CharacterDefinition struct {
 }
 
 func p(points ...Position) []Position { return points }
+func allyBuff(a AttackDefinition, effect string) AttackDefinition {
+	a.AllyEffect = effect
+	return a
+}
 func atk(name string, cost, power int, target string, pattern []Position) AttackDefinition {
 	r := 0
 	for _, cell := range pattern {
@@ -52,7 +57,7 @@ var Definitions = []CharacterDefinition{
 		}(),
 		atk("千変万化", 25, -50, "ally", p(Position{0, 0}, Position{-1, 0}, Position{1, 0}, Position{0, -1}, Position{0, 1})),
 	}},
-	{ID: "sophie", Name: "ソフィー", Image: "Sophie_mini.png", Portrait: "Sophie.png", MaxHP: 100, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{atk("突き sprout～芽生え～", 10, 20, "enemy", adjacent), atk("範囲狙撃 growth～成長～", 20, 80, "enemy", p(Position{3, -1}, Position{3, 0}, Position{3, 1})), atk("集中狙撃 bloom～開花～", 50, 250, "enemy", p(Position{3, 0}))}},
+	{ID: "sophie", Name: "ソフィー", Image: "Sophie_mini.png", Portrait: "Sophie.png", MaxHP: 100, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{atk("突き growth～成長～", 10, 20, "enemy", p(Position{1, 0}, Position{2, 0})), atk("範囲狙撃 bloom～開花～", 20, 80, "enemy", p(Position{2, 0}, Position{3, -1}, Position{3, 0}, Position{3, 1})), atk("集中狙撃 fruit～結実～", 50, 250, "enemy", p(Position{3, 0}))}},
 	{ID: "jude", Name: "ジュード", Image: "Jude_mini.png", Portrait: "Jude.png", MaxHP: 250, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
 		a := atk("急襲", 20, 20, "enemy", adjacent)
 		a.Effect = "出血"
@@ -94,9 +99,9 @@ var Definitions = []CharacterDefinition{
 		a.Tile = "まきびし"
 		return a
 	}()}},
-	{ID: "aoi", Name: "扇衣", Image: "Aoi_mini.png", Portrait: "Aoi.png", MaxHP: 250, MoveCost: 8, MoveRange: 2, Attacks: [3]AttackDefinition{atk("汐汲～しおくみ～", 20, 50, "enemy", p(Position{1, 0}, Position{0, 1}, Position{0, -1})), atk("女伊達～おんなだて～", 30, 0, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{0, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1})), atk("鷺娘～さぎむすめ～", 20, -30, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{0, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))}},
+	{ID: "aoi", Name: "扇衣", Image: "Aoi_mini.png", Portrait: "Aoi.png", MaxHP: 250, MoveCost: 8, MoveRange: 2, Attacks: [3]AttackDefinition{allyBuff(atk("汐汲～しおくみ～", 20, 50, "enemy", p(Position{1, 0}, Position{0, 1}, Position{0, -1})), "俊敏化"), allyBuff(atk("女伊達～おんなだて～", 30, 0, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1})), "威力上昇"), atk("鷺娘～さぎむすめ～", 20, -30, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{0, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))}},
 	{ID: "sena", Name: "星凪", Image: "Sena_mini.png", Portrait: "Sena.png", MaxHP: 150, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
-		a := atk("一条流槍術：衝き", 15, 40, "enemy", p(Position{2, 0}))
+		a := atk("一条流槍術：衝き", 15, 40, "enemy", p(Position{1, 0}, Position{2, 0}))
 		a.Effect = "出血"
 		a.EffectChance = 50
 		return a
@@ -111,14 +116,14 @@ var Definitions = []CharacterDefinition{
 		a.Tile = "地雷"
 		return a
 	}(), atk("爆破！", 30, 60, "enemy", p(Position{1, 0}, Position{2, -1}, Position{2, 0}, Position{2, 1}, Position{3, 0})), atk("小型爆弾", 20, 50, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0}))}},
-	{ID: "chiyo", Name: "千代", Image: "Chiyo_mini.png", Portrait: "Chiyo.png", MaxHP: 150, MoveCost: 5, MoveRange: 3, Attacks: [3]AttackDefinition{atk("一文字斬り", 10, 30, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})), func() AttackDefinition {
+	{ID: "chiyo", Name: "千代", Image: "Chiyo_mini.png", Portrait: "Chiyo.png", MaxHP: 150, MoveCost: 5, MoveRange: 3, Attacks: [3]AttackDefinition{atk("一文字斬り", 10, 20, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})), func() AttackDefinition {
 		a := atk("袈裟斬り", 20, 60, "enemy", adjacent)
 		a.Effect = "出血"
 		a.EffectChance = 50
 		return a
 	}(), atk("真向斬り", 50, 220, "enemy", adjacent)}},
-	{ID: "shincho", Name: "新著", Image: "Shincho_mini.png", Portrait: "Shincho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 240, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 10, -40, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
-		a := atk(":iihanashi:", 10, 0, "ally", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0}))
+	{ID: "shincho", Name: "新著", Image: "Shincho_mini.png", Portrait: "Shincho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 240, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 10, -40, "any", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
+		a := atk(":iihanashi:", 10, 0, "any", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0}))
 		a.ClearDebuffs = true
 		return a
 	}()}},
@@ -147,16 +152,16 @@ var Definitions = []CharacterDefinition{
 
 var passiveDefinitions = map[string][2]string{
 	"wellbulus": {"復活", "戦闘中に一度だけ、戦闘不能になったときHP50で復活する。"},
-	"sophie":    {"範囲支援 fruit～結実～", "周囲1マス以内にいる自身以外の味方の攻撃ダメージを20上昇させる。"},
+	"sophie":    {"範囲支援 sowing～播種～", "戦闘開始時に味方全体に俊足を与え、戦闘離脱時に敵全体に鈍足を与える。"},
 	"jude":      {"受け身", "自身が受けるダメージを20軽減する。"},
-	"nadia":     {"対処番号04：過量使用", "攻撃が当たった敵に追加判定を行い、20%の確率で毒を与える。"},
+	"nadia":     {"対処番号04：過量使用", "命中した敵ごとに50%の確率で、コストを消費せずもう一度攻撃する。"},
 	"tsukiha":   {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
 	"aoi":       {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる自身以外の味方のHPを30回復する。"},
 	"sena":      {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
-	"berenice":  {"爆弾処理", "地雷マスに乗ってもダメージを受けない。"},
+	"berenice":  {"爆弾処理", "地雷マスのダメージを受けない。攻撃範囲の地雷を取り除き、個数×10だけ攻撃ダメージを増加する。"},
 	"chiyo":     {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
-	"shincho":   {":ganbare-:", "周囲1マス以内の味方の攻撃ダメージを10上昇させ、自身のターン終了時にHPを10回復する。"},
-	"zina":      {"補給拠点", "周囲1マス以内にいる味方のパッシブ効果値を10上昇させる。"},
+	"shincho":   {":ganbare-:", "周囲1マス以内の味方（自身を含む）の攻撃ダメージを10上昇させ、自身のターン終了時に範囲内の味方のHPを10回復する。"},
+	"zina":      {"補給拠点", "周囲1マス以内にいる自身以外の味方のパッシブ効果値を10上昇させる。"},
 	"dana":      {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
 }
 
@@ -166,7 +171,7 @@ var passiveDefinitions = map[string][2]string{
 type PassiveValues struct {
 	AttackBoost         int
 	DamageReduction     int
-	ExtraEffectChance   int
+	ExtraAttackChance   int
 	FullHPAttackBoost   int
 	TurnHeal            int
 	PassiveValueBoost   int
@@ -175,9 +180,8 @@ type PassiveValues struct {
 }
 
 var passiveValues = map[string]PassiveValues{
-	"sophie":  {AttackBoost: 20, ExcludeSelf: true},
 	"jude":    {DamageReduction: 20},
-	"nadia":   {ExtraEffectChance: 20},
+	"nadia":   {ExtraAttackChance: 50},
 	"aoi":     {TurnHeal: 30, ExcludeSelf: true},
 	"sena":    {IgnorePassiveReduce: true},
 	"chiyo":   {FullHPAttackBoost: 50},

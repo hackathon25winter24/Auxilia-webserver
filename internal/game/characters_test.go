@@ -8,7 +8,7 @@ func TestSenaAttackRangesAndDebuffsMatchCharacterSpec(t *testing.T) {
 		t.Fatal("星凪の定義がありません")
 	}
 	wantPatterns := [3][]Position{
-		{{2, 0}},
+		{{1, 0}, {2, 0}},
 		{{2, -1}, {2, 0}, {2, 1}},
 		{{2, 0}, {3, 0}},
 	}
@@ -40,7 +40,7 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 	}
 
 	// Auxilia-web/specification/rules.md の個別説明を基準とする。
-	// 2026-09-11の数値改定。効果・範囲の変更は別途対応。回復量は負数で表す。
+	// 回復量は負数で表す。効果・範囲はアクションテストでも検証する。
 	want := map[string]characterNumbers{
 		"wellbulus": {150, 5, [3]attackNumbers{{20, 30, 0}, {20, 0, 0}, {25, -50, 0}}},
 		"sophie":    {100, 10, [3]attackNumbers{{10, 20, 0}, {20, 80, 0}, {50, 250, 0}}},
@@ -50,7 +50,7 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 		"aoi":       {250, 8, [3]attackNumbers{{20, 50, 0}, {30, 0, 0}, {20, -30, 0}}},
 		"sena":      {150, 10, [3]attackNumbers{{15, 40, 50}, {20, 60, 0}, {30, 90, 10}}},
 		"berenice":  {200, 7, [3]attackNumbers{{10, 0, 0}, {30, 60, 0}, {20, 50, 0}}},
-		"chiyo":     {150, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 220, 0}}},
+		"chiyo":     {150, 5, [3]attackNumbers{{10, 20, 0}, {20, 60, 50}, {50, 220, 0}}},
 		"shincho":   {80, 15, [3]attackNumbers{{20, 240, 0}, {10, -40, 0}, {10, 0, 0}}},
 		"zina":      {200, 6, [3]attackNumbers{{20, 30, 40}, {20, 20, 80}, {30, 60, 0}}},
 		"dana":      {200, 9, [3]attackNumbers{{10, 0, 0}, {20, 20, 80}, {20, -30, 0}}},
@@ -79,9 +79,9 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 
 func TestPassiveNumericValuesMatchCharacterSpec(t *testing.T) {
 	tests := map[string]PassiveValues{
-		"sophie":  {AttackBoost: 20, ExcludeSelf: true},
+		"sophie":  {},
 		"jude":    {DamageReduction: 20},
-		"nadia":   {ExtraEffectChance: 20},
+		"nadia":   {ExtraAttackChance: 50},
 		"aoi":     {TurnHeal: 30, ExcludeSelf: true},
 		"sena":    {IgnorePassiveReduce: true},
 		"chiyo":   {FullHPAttackBoost: 50},

@@ -122,8 +122,8 @@ func TestImmutableCannotBeOverwrittenOrPlacedOnForbiddenCells(t *testing.T) {
 	}
 	s := wellbulusFixture()
 	s.setTile(Position{4, 2}, "毒ガス", "b")
-	if err := wellbulusAct(s, 1, Position{4, 2}); err != nil || s.TileEffects[0].Type != "不変" {
-		t.Fatal("cannot replace ordinary debuff tile")
+	if err := wellbulusAct(s, 1, Position{4, 2}); err == nil || s.TileEffects[0].Type != "毒ガス" {
+		t.Fatal("must not replace an existing tile")
 	}
 }
 

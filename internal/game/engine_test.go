@@ -81,7 +81,7 @@ func TestTiedMovementCostDoesNotDependOnQueueOrder(t *testing.T) {
 	}
 }
 
-func TestSophiePassiveExcludesHerselfAndBoostsNearbyAlly(t *testing.T) {
+func TestSophieNoLongerBoostsNearbyAttack(t *testing.T) {
 	s := NewState("m1", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"sophie", "chiyo", "aoi"}, {"jude", "nadia", "dana"}})
 	s.Characters[0].Position = Position{2, 2}
 	s.Characters[1].Position = Position{3, 2}
@@ -90,8 +90,8 @@ func TestSophiePassiveExcludesHerselfAndBoostsNearbyAlly(t *testing.T) {
 	if got := s.attackPower(0, 10); got != 10 {
 		t.Fatalf("ソフィー自身の攻撃力=%d, want=10", got)
 	}
-	if got := s.attackPower(1, 10); got != 30 {
-		t.Fatalf("隣接する味方の攻撃力=%d, want=30", got)
+	if got := s.attackPower(1, 10); got != 10 {
+		t.Fatalf("隣接する味方の攻撃力=%d, want=10", got)
 	}
 }
 
@@ -175,7 +175,7 @@ func TestAttackPatternRotatesWithDirection(t *testing.T) {
 	tests := []struct{ direction, want Position }{{Position{-1, 0}, Position{2, 3}}, {Position{0, 1}, Position{3, 4}}, {Position{1, 0}, Position{4, 3}}, {Position{0, -1}, Position{3, 2}}}
 	for _, test := range tests {
 		cells := s.attackCells(0, a.Attacks[0], test.direction)
-		if len(cells) != 1 || cells[0] != test.want {
+		if !containsPosition(cells, test.want) {
 			t.Fatalf("direction=%v cells=%v want=%v", test.direction, cells, test.want)
 		}
 	}

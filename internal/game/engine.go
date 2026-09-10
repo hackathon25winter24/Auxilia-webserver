@@ -28,15 +28,16 @@ type Position struct {
 	Y int `json:"y"`
 }
 type Character struct {
-	ID           string   `json:"id"`
-	DefinitionID string   `json:"definitionId"`
-	OwnerID      string   `json:"ownerId"`
-	Name         string   `json:"name"`
-	HP           int      `json:"hp"`
-	MaxHP        int      `json:"maxHP"`
-	Position     Position `json:"position"`
-	Effects      []string `json:"effects"`
-	ReviveUsed   bool     `json:"reviveUsed,omitempty"`
+	ID            string   `json:"id"`
+	DefinitionID  string   `json:"definitionId"`
+	OwnerID       string   `json:"ownerId"`
+	Name          string   `json:"name"`
+	HP            int      `json:"hp"`
+	MaxHP         int      `json:"maxHP"`
+	Position      Position `json:"position"`
+	Effects       []string `json:"effects"`
+	ReviveUsed    bool     `json:"reviveUsed,omitempty"`
+	DepartureUsed bool     `json:"departureUsed,omitempty"`
 }
 type Player struct {
 	ID   string `json:"id"`
@@ -124,8 +125,24 @@ func newState(id string, players [2]Player, selections [2][]string, started bool
 			}
 		}
 	}
+	if started {
+		s.applyStartPassives()
+	}
 	s.record(s.LastEvent)
 	return s
+}
+
+func (s *State) applyStartPassives() {
+	for _, source := range s.Characters {
+		if source.DefinitionID != "sophie" {
+			continue
+		}
+		for j := range s.Characters {
+			if s.Characters[j].OwnerID == source.OwnerID {
+				s.addEffect(j, "俊足")
+			}
+		}
+	}
 }
 
 func firstPlayerID(matchID string, players [2]Player, selections [2][]string) string {
@@ -179,6 +196,7 @@ func (s *State) Ready(playerID string) error {
 	s.LastEvent = Event{Sequence: s.Revision, Type: "PLAYER_READY", Text: "相手を待っています"}
 	if len(s.ReadyPlayerIDs) == 2 {
 		s.Started = true
+		s.applyStartPassives()
 		s.Phase = "action"
 		s.TurnDeadline = time.Now().Add(TurnDuration)
 		s.LastEvent = Event{Sequence: s.Revision, Type: "MATCH_STARTED", Text: "対戦開始"}
@@ -280,7 +298,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return ErrInvalidAction
 	}
 	if a.Tile != "" {
-		if s.baseAt(c.Target) >= 0 || s.blocked(c.Target) || s.immutableAt(c.Target) || (a.Tile != "不変" && s.occupied(c.Target, "")) {
+		if s.baseAt(c.Target) >= 0 || s.blocked(c.Target) || s.tileAt(c.Target) >= 0 || (a.Tile != "不変" && s.occupied(c.Target, "")) {
 			return ErrInvalidAction
 		}
 		s.setTile(c.Target, a.Tile, playerID)
@@ -289,11 +307,28 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return nil
 	}
 	affected := 0
+	// 地雷はダメージ計算前にまとめて処理し、全対象に同じ加算値を使う。
+	if d.ID == "berenice" && a.Power > 0 {
+		for j := len(s.TileEffects) - 1; j >= 0; j-- {
+			if s.TileEffects[j].Type == "地雷" && containsPosition(cells, s.TileEffects[j].Position) {
+				a.Power += 10 + s.passiveBoost(i)
+				s.TileEffects = append(s.TileEffects[:j], s.TileEffects[j+1:]...)
+				affected++
+			}
+		}
+	}
 	for j := range s.Characters {
 		if s.Characters[j].HP <= 0 || !containsPosition(cells, s.Characters[j].Position) {
 			continue
 		}
 		same := s.Characters[j].OwnerID == playerID
+		if same && a.AllyEffect != "" {
+			if i != j {
+				s.addEffect(j, a.AllyEffect)
+				affected++
+			}
+			continue
+		}
 		if !(a.Target == "any" || a.Target == "ally" && same || a.Target == "enemy" && !same) {
 			continue
 		}
@@ -314,8 +349,12 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		if a.Effect != "" && !same && s.roll(i, j, a.Effect, a.EffectChance) {
 			s.addEffect(j, a.Effect)
 		}
-		if chance := passiveFor(d.ID).ExtraEffectChance; chance > 0 && !same && s.roll(i, j, "過量使用", chance) {
-			s.addEffect(j, "毒")
+		if chance := passiveFor(d.ID).ExtraAttackChance; chance > 0 && !same && s.Characters[j].HP > 0 && s.roll(i, j, "過量使用", chance+s.passiveBoost(i)) {
+			// 追撃から追撃は発動しない。追加攻撃のデバフは独立判定。
+			s.Characters[j].HP = clamp(s.Characters[j].HP-power, 0, s.Characters[j].MaxHP)
+			if a.Effect != "" && s.roll(i, j, a.Effect+"追撃", a.EffectChance) {
+				s.addEffect(j, a.Effect)
+			}
 		}
 		affected++
 	}
@@ -348,10 +387,8 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		eventType = "BUFFS_CLEARED"
 	}
 	message := fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected)
-	if a.Power == 0 && a.Effect == "" && !a.ClearDebuffs && !a.ClearBuffs {
-		// 女伊達は仕様確定まで効果なし。被弾音も再生させない。
+	if a.Power == 0 {
 		eventType = "SKILL_USED"
-		message = fmt.Sprintf("%sの%s：効果なし", s.Characters[i].Name, a.Name)
 	}
 	s.commit(eventType, message)
 	s.checkWinner()
@@ -523,6 +560,18 @@ func (s *State) commit(t, text string) {
 	s.record(s.LastEvent)
 }
 func (s *State) checkWinner() {
+	for i := range s.Characters {
+		c := &s.Characters[i]
+		if c.DefinitionID == "sophie" && c.HP <= 0 && !c.DepartureUsed {
+			c.DepartureUsed = true
+			for j := range s.Characters {
+				if s.Characters[j].OwnerID != c.OwnerID && s.Characters[j].HP > 0 {
+					s.addEffect(j, "鈍足")
+				}
+			}
+			s.commit("PASSIVE_ACTIVATED", "ソフィーの播種：敵全体に鈍足")
+		}
+	}
 	// 撃破・毒・地雷などの解決後、勝敗を決める前に一度だけ復活する。
 	for i := range s.Characters {
 		c := &s.Characters[i]

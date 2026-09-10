@@ -14,7 +14,7 @@ func (s *State) hasEffect(character int, effect string) bool {
 	return false
 }
 func (s *State) addEffect(character int, effect string) {
-	if s.Characters[character].DefinitionID == "dana" {
+	if s.Characters[character].DefinitionID == "dana" && effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
 		return
 	}
 	if !s.hasEffect(character, effect) {
@@ -104,10 +104,6 @@ func (s *State) setTile(position Position, tileType, ownerID string) {
 		tile.HP = 170
 	}
 	if i := s.tileAt(position); i >= 0 {
-		if s.TileEffects[i].Type == "不変" {
-			return
-		}
-		s.TileEffects[i] = tile
 		return
 	}
 	s.TileEffects = append(s.TileEffects, tile)

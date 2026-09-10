@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAoiOnnadateHasNoEffectWhilePending(t *testing.T) {
+func TestAoiOnnadateBuffsOnlyOtherAllies(t *testing.T) {
 	s := NewState("aoi-pending", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"aoi", "jude", "sophie"}, {"dana"}})
 	s.TurnPlayerID = "a"
 	s.Characters[0].Position = Position{3, 2}
@@ -17,13 +17,15 @@ func TestAoiOnnadateHasNoEffectWhilePending(t *testing.T) {
 		s.Characters[i].Effects = []string{"出血"}
 	}
 	before := append([]Character(nil), s.Characters...)
+	before[1].Effects = []string{"出血", "威力上昇"}
+	before[2].Effects = []string{"出血", "威力上昇"}
 	bases := s.Bases
 	err := s.ApplyAttack("a", Command{CharacterID: s.Characters[0].ID, ExpectedRevision: s.Revision, AttackIndex: 1, Target: Position{4, 3}, Direction: Position{1, 0}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(before, s.Characters) || !reflect.DeepEqual(bases, s.Bases) {
-		t.Fatal("pending skill changed characters or bases")
+		t.Fatal("buff must affect only other allies, without damage or healing")
 	}
 	if s.cost("a") != 20 || s.LastEvent.Type != "SKILL_USED" {
 		t.Fatalf("cost=%d event=%s", s.cost("a"), s.LastEvent.Type)
@@ -66,7 +68,7 @@ func TestSenaAndBereniceAttackFootprints(t *testing.T) {
 		attack, damage int
 		cells          []Position
 	}{
-		{"sena thrust", "sena", 0, 40, []Position{{5, 2}}},
+		{"sena thrust", "sena", 0, 40, []Position{{4, 2}, {5, 2}}},
 		{"sena sweep", "sena", 1, 60, []Position{{5, 1}, {5, 2}, {5, 3}}},
 		{"sena slash", "sena", 2, 90, []Position{{5, 2}, {6, 2}}},
 		{"berenice explosion", "berenice", 1, 60, []Position{{4, 2}, {5, 1}, {5, 2}, {5, 3}, {6, 2}}},
