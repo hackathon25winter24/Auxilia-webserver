@@ -52,6 +52,7 @@ type TileEffect struct {
 	Position Position `json:"position"`
 	Type     string   `json:"type"`
 	OwnerID  string   `json:"ownerId"`
+	HP       int      `json:"hp,omitempty"`
 }
 type Event struct {
 	Sequence uint64 `json:"sequence"`
@@ -229,6 +230,9 @@ func (s *State) ApplyMove(playerID string, c Command) error {
 	if s.hasEffect(i, "麻痺") {
 		return ErrInvalidAction
 	}
+	if s.immutableAt(c.Target) || (s.immutableAt(s.Characters[i].Position) && !s.ignoresDebuffTiles(i)) {
+		return ErrInvalidAction
+	}
 	moveCost := d.MoveCost
 	if s.hasEffect(i, "俊足") {
 		moveCost -= 2
@@ -275,7 +279,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return ErrInvalidAction
 	}
 	if a.Tile != "" {
-		if s.baseAt(c.Target) >= 0 || s.blocked(c.Target) || s.occupied(c.Target, "") {
+		if s.baseAt(c.Target) >= 0 || s.blocked(c.Target) || s.immutableAt(c.Target) || (a.Tile != "不変" && s.occupied(c.Target, "")) {
 			return ErrInvalidAction
 		}
 		s.setTile(c.Target, a.Tile, playerID)
@@ -303,6 +307,9 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		if a.ClearDebuffs {
 			s.clearDebuffs(j)
 		}
+		if a.ClearBuffs {
+			s.clearBuffs(j)
+		}
 		if a.Effect != "" && !same && s.roll(i, j, a.Effect, a.EffectChance) {
 			s.addEffect(j, a.Effect)
 		}
@@ -311,10 +318,19 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		}
 		affected++
 	}
-	if a.Power >= 0 && (a.Target == "enemy" || a.Target == "any") {
+	if a.Power > 0 && (a.Target == "enemy" || a.Target == "any") {
 		for j := range s.Bases {
 			if (a.Target == "any" || s.Bases[j].OwnerID != playerID) && containsPosition(cells, s.Bases[j].Position) {
 				s.Bases[j].HP = clamp(s.Bases[j].HP-s.attackPower(i, a.Power), 0, s.Bases[j].MaxHP)
+				affected++
+			}
+		}
+	}
+	// 不変マスは所有者によらず攻撃で破壊できる。足元のキャラも通常の対象判定に従う。
+	if a.Power > 0 && (a.Target == "enemy" || a.Target == "any") {
+		for j := len(s.TileEffects) - 1; j >= 0; j-- {
+			if s.TileEffects[j].Type == "不変" && containsPosition(cells, s.TileEffects[j].Position) {
+				s.damageImmutable(j, s.attackPower(i, a.Power))
 				affected++
 			}
 		}
@@ -327,8 +343,11 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	if a.Power < 0 {
 		eventType = "RECOVERED"
 	}
+	if a.ClearBuffs {
+		eventType = "BUFFS_CLEARED"
+	}
 	message := fmt.Sprintf("%sの%s：%d対象に効果", s.Characters[i].Name, a.Name, affected)
-	if a.Power == 0 && a.Effect == "" && !a.ClearDebuffs {
+	if a.Power == 0 && a.Effect == "" && !a.ClearDebuffs && !a.ClearBuffs {
 		// 女伊達は仕様確定まで効果なし。被弾音も再生させない。
 		eventType = "SKILL_USED"
 		message = fmt.Sprintf("%sの%s：効果なし", s.Characters[i].Name, a.Name)

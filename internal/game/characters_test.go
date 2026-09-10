@@ -41,17 +41,18 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 
 	// 仕様書/キャラ.md に記載された数値。回復量は内部表現に合わせて負数で表す。
 	want := map[string]characterNumbers{
-		"sophie":   {100, 10, [3]attackNumbers{{10, 10, 0}, {20, 50, 0}, {50, 250, 0}}},
-		"jude":     {250, 10, [3]attackNumbers{{10, 10, 30}, {20, 50, 0}, {30, -30, 0}}},
-		"nadia":    {200, 7, [3]attackNumbers{{10, 20, 20}, {20, 40, 40}, {30, 60, 60}}},
-		"tsukiha":  {100, 3, [3]attackNumbers{{4, 10, 30}, {6, 10, 20}, {10, 0, 0}}},
-		"aoi":      {250, 8, [3]attackNumbers{{10, 20, 0}, {20, 0, 0}, {20, -40, 0}}},
-		"sena":     {150, 10, [3]attackNumbers{{15, 40, 50}, {20, 60, 0}, {30, 90, 10}}},
-		"berenice": {200, 6, [3]attackNumbers{{15, 0, 0}, {25, 60, 0}, {20, 60, 0}}},
-		"chiyo":    {150, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 200, 0}}},
-		"shincho":  {80, 15, [3]attackNumbers{{20, 220, 0}, {15, -40, 0}, {15, 0, 0}}},
-		"zina":     {150, 5, [3]attackNumbers{{20, 20, 30}, {20, 20, 60}, {30, 60, 0}}},
-		"dana":     {200, 10, [3]attackNumbers{{10, 0, 0}, {20, 20, 50}, {20, -30, 0}}},
+		"wellbulus": {150, 5, [3]attackNumbers{{20, 0, 0}, {30, 0, 0}, {25, -60, 0}}},
+		"sophie":    {100, 10, [3]attackNumbers{{10, 10, 0}, {20, 50, 0}, {50, 250, 0}}},
+		"jude":      {250, 10, [3]attackNumbers{{10, 10, 30}, {20, 50, 0}, {30, -30, 0}}},
+		"nadia":     {200, 7, [3]attackNumbers{{10, 20, 20}, {20, 40, 40}, {30, 60, 60}}},
+		"tsukiha":   {100, 3, [3]attackNumbers{{4, 10, 30}, {6, 10, 20}, {10, 0, 0}}},
+		"aoi":       {250, 8, [3]attackNumbers{{10, 20, 0}, {20, 0, 0}, {20, -40, 0}}},
+		"sena":      {150, 10, [3]attackNumbers{{15, 40, 50}, {20, 60, 0}, {30, 90, 10}}},
+		"berenice":  {200, 6, [3]attackNumbers{{15, 0, 0}, {25, 60, 0}, {20, 60, 0}}},
+		"chiyo":     {150, 5, [3]attackNumbers{{10, 30, 0}, {20, 60, 50}, {50, 200, 0}}},
+		"shincho":   {80, 15, [3]attackNumbers{{20, 220, 0}, {15, -40, 0}, {15, 0, 0}}},
+		"zina":      {150, 5, [3]attackNumbers{{20, 20, 30}, {20, 20, 60}, {30, 60, 0}}},
+		"dana":      {200, 10, [3]attackNumbers{{10, 0, 0}, {20, 20, 50}, {20, -30, 0}}},
 	}
 
 	if len(Definitions) != len(want) {

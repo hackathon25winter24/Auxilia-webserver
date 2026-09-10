@@ -31,6 +31,16 @@ func (s *State) clearDebuffs(character int) {
 	}
 	s.Characters[character].Effects = kept
 }
+
+func (s *State) clearBuffs(character int) {
+	kept := s.Characters[character].Effects[:0]
+	for _, effect := range s.Characters[character].Effects {
+		if effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
+			kept = append(kept, effect)
+		}
+	}
+	s.Characters[character].Effects = kept
+}
 func (s *State) roll(actor, target int, effect string, chance int) bool {
 	h := fnv.New32a()
 	fmt.Fprintf(h, "%s:%d:%s:%s:%s", s.MatchID, s.Revision, s.Characters[actor].ID, s.Characters[target].ID, effect)
@@ -89,11 +99,36 @@ func (s *State) baseAt(position Position) int {
 	return -1
 }
 func (s *State) setTile(position Position, tileType, ownerID string) {
+	tile := TileEffect{Position: position, Type: tileType, OwnerID: ownerID}
+	if tileType == "不変" {
+		tile.HP = 120
+	}
 	if i := s.tileAt(position); i >= 0 {
-		s.TileEffects[i] = TileEffect{position, tileType, ownerID}
+		if s.TileEffects[i].Type == "不変" {
+			return
+		}
+		s.TileEffects[i] = tile
 		return
 	}
-	s.TileEffects = append(s.TileEffects, TileEffect{position, tileType, ownerID})
+	s.TileEffects = append(s.TileEffects, tile)
+}
+
+func (s *State) immutableAt(position Position) bool {
+	i := s.tileAt(position)
+	return i >= 0 && s.TileEffects[i].Type == "不変"
+}
+
+func (s *State) damageImmutable(index, amount int) {
+	tile := &s.TileEffects[index]
+	damage := min(tile.HP, max(0, amount))
+	tile.HP -= damage
+	text := fmt.Sprintf("不変マス(%d,%d)に%dダメージ（残りHP%d）", tile.Position.X, tile.Position.Y, damage, tile.HP)
+	if tile.HP <= 0 {
+		s.TileEffects = append(s.TileEffects[:index], s.TileEffects[index+1:]...)
+		s.commit("TILE_DESTROYED", text+"：消滅")
+	} else {
+		s.commit("TILE_DAMAGED", text)
+	}
 }
 func (s *State) triggerTile(character int) {
 	index := s.tileAt(s.Characters[character].Position)
@@ -176,6 +211,11 @@ func (s *State) processTurnEnd(playerID string) {
 	}
 	if gasPoisonedTargets > 0 {
 		s.commit("TURN_END_EFFECT", fmt.Sprintf("毒ガスマスにより%d体に毒を付与", gasPoisonedTargets))
+	}
+	for i := len(s.TileEffects) - 1; i >= 0; i-- {
+		if s.TileEffects[i].Type == "不変" {
+			s.damageImmutable(i, 50)
+		}
 	}
 }
 func (s *State) healNearby(source, amount int) (int, int) {

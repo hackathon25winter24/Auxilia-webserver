@@ -11,6 +11,7 @@ type AttackDefinition struct {
 	EffectChance int        `json:"effectChance,omitempty"`
 	Tile         string     `json:"tile,omitempty"`
 	ClearDebuffs bool       `json:"clearDebuffs,omitempty"`
+	ClearBuffs   bool       `json:"clearBuffs,omitempty"`
 }
 type CharacterDefinition struct {
 	ID                 string              `json:"id"`
@@ -38,6 +39,19 @@ func atk(name string, cost, power int, target string, pattern []Position) Attack
 
 var adjacent = p(Position{1, 0})
 var Definitions = []CharacterDefinition{
+	{ID: "wellbulus", Name: "ウェルブルス", Image: "wellbulus_mini.png", Portrait: "wellbulus.png", MaxHP: 150, MoveCost: 5, MoveRange: 1, Attacks: [3]AttackDefinition{
+		func() AttackDefinition {
+			a := atk("栄枯盛衰", 20, 0, "enemy", p(Position{-1, 0}, Position{1, 0}, Position{0, -1}, Position{0, 1}))
+			a.ClearBuffs = true
+			return a
+		}(),
+		func() AttackDefinition {
+			a := atk("永久不変", 30, 0, "cell", adjacent)
+			a.Tile = "不変"
+			return a
+		}(),
+		atk("千変万化", 25, -60, "ally", p(Position{0, 0}, Position{-1, 0}, Position{1, 0}, Position{0, -1}, Position{0, 1})),
+	}},
 	{ID: "sophie", Name: "ソフィー", Image: "Sophie_mini.png", Portrait: "Sophie.png", MaxHP: 100, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{atk("突き sprout～芽生え～", 10, 10, "enemy", adjacent), atk("範囲狙撃 growth～成長～", 20, 50, "enemy", p(Position{3, -1}, Position{3, 0}, Position{3, 1})), atk("集中狙撃 bloom～開花～", 50, 250, "enemy", p(Position{3, 0}))}},
 	{ID: "jude", Name: "ジュード", Image: "Jude_mini.png", Portrait: "Jude.png", MaxHP: 250, MoveCost: 10, MoveRange: 2, Attacks: [3]AttackDefinition{func() AttackDefinition {
 		a := atk("急襲", 10, 10, "enemy", adjacent)
