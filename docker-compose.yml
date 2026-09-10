@@ -30,6 +30,7 @@ services:
       - "8080:8080"
     environment:
       PORT: 8080
+      TESTMODE_PASSWORD: ${TESTMODE_PASSWORD:-}
       NS_MARIADB_HOSTNAME: db
       NS_MARIADB_PORT: 3306
       NS_MARIADB_USER: auxilia_user

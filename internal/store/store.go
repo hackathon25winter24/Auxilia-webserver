@@ -110,8 +110,8 @@ func (s *Store) ReadyMatch(matchID, guestID string) (*game.State, error) {
 		if err := parsed.Ready(guestID); err != nil {
 			return err
 		}
-		if !wasStarted && parsed.Started && !m.UsageCounted {
-			if err := recordCharacterUsage(tx, parsed.Characters); err != nil {
+		if !wasStarted && parsed.Started && parsed.TestOwnerID == "" && !m.UsageCounted {
+			if err := recordCharacterUsage(tx, parsed); err != nil {
 				return err
 			}
 			if err := tx.Model(&m).Update("usage_counted", true).Error; err != nil {
@@ -235,6 +235,14 @@ func (s *Store) Apply(matchID, guestID, commandID string, apply func(*game.State
 		}
 		parsed.ExpireTurn(time.Now())
 		key := matchID + ":" + guestID + ":" + commandID
+		if parsed.TestOwnerID != "" && parsed.Finished {
+			if err := saveState(tx, &m, parsed); err != nil {
+				return err
+			}
+			parsed.ServerTime = time.Now()
+			state = parsed
+			return nil
+		}
 		var count int64
 		if err := tx.Model(&ProcessedCommand{}).Where("id = ?", key).Count(&count).Error; err != nil {
 			return err

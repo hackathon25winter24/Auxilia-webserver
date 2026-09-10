@@ -29,6 +29,7 @@ func main() {
 	mux.HandleFunc("GET /api/me", s.auth(s.me))
 	mux.HandleFunc("PUT /api/me/selection", s.auth(s.selection))
 	mux.HandleFunc("POST /api/matchmaking", s.auth(s.matchmaking))
+	mux.HandleFunc("POST /api/test-matches", s.auth(s.testMatch))
 	mux.HandleFunc("DELETE /api/matchmaking", s.auth(s.cancel))
 	mux.HandleFunc("GET /api/matches/{id}", s.auth(s.matchState))
 	mux.HandleFunc("POST /api/matches/{id}/ready", s.auth(s.readyMatch))

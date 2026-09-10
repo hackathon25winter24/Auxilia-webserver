@@ -8,8 +8,11 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func recordCharacterUsage(tx *gorm.DB, characters []game.Character) error {
-	for _, character := range characters {
+func recordCharacterUsage(tx *gorm.DB, state *game.State) error {
+	if state.TestOwnerID != "" {
+		return nil
+	}
+	for _, character := range state.Characters {
 		usage := CharacterUsage{CharacterID: character.DefinitionID, UseCount: 1}
 		if err := tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "character_id"}},

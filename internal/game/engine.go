@@ -62,6 +62,7 @@ type Event struct {
 	Text     string `json:"text"`
 }
 type State struct {
+	TestOwnerID    string       `json:"testOwnerId,omitempty"`
 	MatchID        string       `json:"matchId"`
 	Revision       uint64       `json:"revision"`
 	Started        bool         `json:"started"`
@@ -93,6 +94,37 @@ type Command struct {
 
 func NewState(id string, players [2]Player, selections [2][]string) *State {
 	return newState(id, players, selections, true)
+}
+
+func NewTestState(id, ownerID, name string, selection []string) *State {
+	players := [2]Player{{ID: name + "1", Name: name + "1"}, {ID: name + "2", Name: name + "2"}}
+	s := NewState(id, players, [2][]string{selection, selection})
+	s.TestOwnerID = ownerID
+	return s
+}
+
+// Only the authenticated owner can control the current test side.
+func (s *State) ControlledPlayer(guestID string) string {
+	if s.TestOwnerID != "" && s.TestOwnerID == guestID {
+		return s.TurnPlayerID
+	}
+	return guestID
+}
+
+func (s *State) EndTest(guestID string, expected uint64) error {
+	if s.TestOwnerID == "" || s.TestOwnerID != guestID {
+		return ErrInvalidAction
+	}
+	if s.Finished {
+		return nil
+	}
+	if s.Revision != expected {
+		return ErrStaleRevision
+	}
+	s.Finished = true
+	s.WinnerID = ""
+	s.commit("TEST_FINISHED", "テストモードを終了しました")
+	return nil
 }
 
 func NewPendingState(id string, players [2]Player, selections [2][]string) *State {
@@ -443,6 +475,10 @@ func (s *State) ExpireTurn(now time.Time) {
 		return
 	}
 	if now.After(s.TurnDeadline) {
+		if s.TestOwnerID != "" {
+			_ = s.EndTest(s.TestOwnerID, s.Revision)
+			return
+		}
 		s.beginTurnEnd("120秒経過によりターン終了後処理")
 	}
 }

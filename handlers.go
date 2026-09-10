@@ -2,11 +2,14 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"auxilia-webserver/internal/game"
@@ -107,6 +110,31 @@ func (s *service) matchmaking(w http.ResponseWriter, r *http.Request, g *store.G
 	}
 	write(w, 200, guestDTO(updated))
 }
+
+func (s *service) testMatch(w http.ResponseWriter, r *http.Request, g *store.Guest) {
+	var in struct {
+		Password string `json:"password"`
+	}
+	if decode(w, r, &in) != nil {
+		return
+	}
+	expected := os.Getenv("TESTMODE_PASSWORD")
+	if expected == "" {
+		problem(w, 503, "テストモードは設定されていません")
+		return
+	}
+	a, b := sha256.Sum256([]byte(in.Password)), sha256.Sum256([]byte(expected))
+	if subtle.ConstantTimeCompare(a[:], b[:]) != 1 {
+		problem(w, 403, "パスワードが違います")
+		return
+	}
+	updated, err := s.store.CreateTestMatch(g.ID, id("test"))
+	if err != nil {
+		problem(w, 409, err.Error())
+		return
+	}
+	write(w, 201, guestDTO(updated))
+}
 func (s *service) cancel(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	updated, err := s.store.CancelQueue(g.ID)
 	if err != nil {
@@ -160,28 +188,33 @@ func (s *service) move(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	if decode(w, r, &c) != nil {
 		return
 	}
-	s.apply(w, r, g, c, func(st *game.State) error { return st.ApplyMove(g.ID, c) })
+	s.apply(w, r, g, c, func(st *game.State) error { return st.ApplyMove(st.ControlledPlayer(g.ID), c) })
 }
 func (s *service) attack(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
 		return
 	}
-	s.apply(w, r, g, c, func(st *game.State) error { return st.ApplyAttack(g.ID, c) })
+	s.apply(w, r, g, c, func(st *game.State) error { return st.ApplyAttack(st.ControlledPlayer(g.ID), c) })
 }
 func (s *service) endTurn(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
 		return
 	}
-	s.apply(w, r, g, c, func(st *game.State) error { return st.EndTurn(g.ID, c.ExpectedRevision) })
+	s.apply(w, r, g, c, func(st *game.State) error { return st.EndTurn(st.ControlledPlayer(g.ID), c.ExpectedRevision) })
 }
 func (s *service) surrender(w http.ResponseWriter, r *http.Request, g *store.Guest) {
 	var c game.Command
 	if decode(w, r, &c) != nil {
 		return
 	}
-	s.apply(w, r, g, c, func(st *game.State) error { return st.Surrender(g.ID, c.ExpectedRevision) })
+	s.apply(w, r, g, c, func(st *game.State) error {
+		if st.TestOwnerID != "" {
+			return st.EndTest(g.ID, c.ExpectedRevision)
+		}
+		return st.Surrender(g.ID, c.ExpectedRevision)
+	})
 }
 func (s *service) apply(w http.ResponseWriter, r *http.Request, g *store.Guest, c game.Command, fn func(*game.State) error) {
 	if c.ID == "" {
