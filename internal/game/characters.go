@@ -13,18 +13,20 @@ type AttackDefinition struct {
 	ClearDebuffs bool       `json:"clearDebuffs,omitempty"`
 	ClearBuffs   bool       `json:"clearBuffs,omitempty"`
 	AllyEffect   string     `json:"allyEffect,omitempty"`
+	Description  string     `json:"description,omitempty"`
 }
 type CharacterDefinition struct {
-	ID                 string              `json:"id"`
-	Name               string              `json:"name"`
-	Image              string              `json:"image"`
-	Portrait           string              `json:"portrait"`
-	MaxHP              int                 `json:"maxHP"`
-	MoveCost           int                 `json:"moveCost"`
-	MoveRange          int                 `json:"moveRange"`
-	PassiveName        string              `json:"passiveName"`
-	PassiveDescription string              `json:"passiveDescription"`
-	Attacks            [3]AttackDefinition `json:"attacks"`
+	AlternateAttacks   *[3]AttackDefinition `json:"alternateAttacks,omitempty"`
+	ID                 string               `json:"id"`
+	Name               string               `json:"name"`
+	Image              string               `json:"image"`
+	Portrait           string               `json:"portrait"`
+	MaxHP              int                  `json:"maxHP"`
+	MoveCost           int                  `json:"moveCost"`
+	MoveRange          int                  `json:"moveRange"`
+	PassiveName        string               `json:"passiveName"`
+	PassiveDescription string               `json:"passiveDescription"`
+	Attacks            [3]AttackDefinition  `json:"attacks"`
 }
 
 func p(points ...Position) []Position { return points }
@@ -44,6 +46,51 @@ func atk(name string, cost, power int, target string, pattern []Position) Attack
 
 var adjacent = p(Position{1, 0})
 var Definitions = []CharacterDefinition{
+	{ID: "suima", Name: "睡魔", Image: "suima_mini.png", Portrait: "suima.png", MaxHP: 140, MoveCost: 10, MoveRange: 1,
+		Attacks: [3]AttackDefinition{
+			func() AttackDefinition {
+				a := atk("進捗を錬成", 20, 20, "enemy", p(Position{1, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}))
+				a.Description = "範囲への攻撃に加え、敵味方すべての新著久無子に範囲を問わず40ダメージ。"
+				return a
+			}(),
+			func() AttackDefinition {
+				a := atk(":star_struck:", 10, 0, "ally", p(Position{0, 0}))
+				a.Description = "使用したターン中、自身に俊足と威力上昇を付与する。"
+				return a
+			}(),
+			func() AttackDefinition {
+				a := atk("それはよくないとされている", 20, 10, "enemy", p(Position{2, -1}, Position{3, -1}, Position{2, 0}, Position{3, 0}, Position{2, 1}, Position{3, 1}))
+				a.ClearBuffs = true
+				a.Description = "範囲内の敵のバフと、敵が設置したマスを取り除く。"
+				return a
+			}(),
+		}, AlternateAttacks: &[3]AttackDefinition{
+			func() AttackDefinition {
+				a := atk(":wara:", 20, 0, "any", p(Position{1, -1}, Position{2, -1}, Position{3, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{1, 1}, Position{2, 1}, Position{3, 1}))
+				a.Effect = "鈍化"
+				a.EffectChance = 100
+				return a
+			}(),
+			func() AttackDefinition {
+				a := atk("ン！俺が悪い", 20, 0, "ally", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{0, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))
+				a.ClearDebuffs = true
+				return a
+			}(),
+			atk("一旦寝るか", 15, -40, "ally", p(Position{0, 0})),
+		}},
+	{ID: "kasuima", Name: "カスイマ", Image: "kasuima_mini.png", Portrait: "kasuima.png", MaxHP: 150, MoveCost: 15, MoveRange: 1, Attacks: [3]AttackDefinition{
+		func() AttackDefinition {
+			a := atk("酒", 10, 0, "ally", p(Position{0, 0}))
+			a.Description = "自身にこのターン中、威力上昇を付与。次の自分のターン中、二日酔い（攻撃力20%低下、移動・攻撃コスト各5増加）を付与する。"
+			return a
+		}(),
+		atk("煙草", 10, 15, "enemy", p(Position{2, -1}, Position{2, 0}, Position{2, 1})),
+		func() AttackDefinition {
+			a := atk("Reverse", 20, 5, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}))
+			a.Description = "命中したキャラを攻撃方向に2マス押し戻す。移動先が無効なら1マス、そこも無効なら移動しない。"
+			return a
+		}(),
+	}},
 	{ID: "wellbulus", Name: "ウェルブルス", Image: "wellbulus_mini.png", Portrait: "wellbulus.png", MaxHP: 150, MoveCost: 5, MoveRange: 1, Attacks: [3]AttackDefinition{
 		func() AttackDefinition {
 			a := atk("栄枯盛衰", 20, 30, "enemy", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))
@@ -151,6 +198,8 @@ var Definitions = []CharacterDefinition{
 }
 
 var passiveDefinitions = map[string][2]string{
+	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。初回は活動状態。"},
+	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。"},
 	"wellbulus": {"復活", "戦闘中に一度だけ、戦闘不能になったときHP50で復活する。"},
 	"sophie":    {"範囲支援 sowing～播種～", "戦闘開始時に味方全体に俊足を与え、戦闘離脱時に敵全体に鈍足を与える。"},
 	"jude":      {"受け身", "自身が受けるダメージを20軽減する。"},

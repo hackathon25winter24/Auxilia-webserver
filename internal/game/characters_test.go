@@ -42,6 +42,8 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 	// Auxilia-web/specification/rules.md の個別説明を基準とする。
 	// 回復量は負数で表す。効果・範囲はアクションテストでも検証する。
 	want := map[string]characterNumbers{
+		"suima":     {140, 10, [3]attackNumbers{{20, 20, 0}, {10, 0, 0}, {20, 10, 0}}},
+		"kasuima":   {150, 15, [3]attackNumbers{{10, 0, 0}, {10, 15, 0}, {20, 5, 0}}},
 		"wellbulus": {150, 5, [3]attackNumbers{{20, 30, 0}, {20, 0, 0}, {25, -50, 0}}},
 		"sophie":    {100, 10, [3]attackNumbers{{10, 20, 0}, {20, 80, 0}, {50, 250, 0}}},
 		"jude":      {250, 10, [3]attackNumbers{{20, 20, 30}, {20, 50, 0}, {30, -30, 0}}},

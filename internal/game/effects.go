@@ -14,6 +14,9 @@ func (s *State) hasEffect(character int, effect string) bool {
 	return false
 }
 func (s *State) addEffect(character int, effect string) {
+	if s.Characters[character].DefinitionID == "kasuima" && (effect == "威力上昇" || effect == "俊足" || effect == "俊敏化") {
+		return
+	}
 	if s.Characters[character].DefinitionID == "dana" && effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
 		return
 	}
@@ -22,7 +25,7 @@ func (s *State) addEffect(character int, effect string) {
 	}
 }
 func (s *State) clearDebuffs(character int) {
-	debuffs := map[string]bool{"毒": true, "麻痺": true, "鈍足": true, "鈍化": true, "出血": true}
+	debuffs := map[string]bool{"毒": true, "麻痺": true, "鈍足": true, "鈍化": true, "出血": true, "二日酔い": true}
 	kept := s.Characters[character].Effects[:0]
 	for _, effect := range s.Characters[character].Effects {
 		if !debuffs[effect] {
@@ -55,6 +58,9 @@ func (s *State) passiveBoost(character int) int {
 	return 0
 }
 func (s *State) attackPower(actor, power int) int {
+	if s.hasEffect(actor, "二日酔い") {
+		power = power * 80 / 100
+	}
 	if s.hasEffect(actor, "威力上昇") {
 		power = power * 125 / 100
 	}
@@ -196,11 +202,22 @@ func (s *State) processTurnEnd(playerID string) {
 		}
 		effects := c.Effects[:0]
 		for _, effect := range c.Effects {
-			if effect != "麻痺" {
+			temporary := false
+			for _, buff := range c.TemporaryBuffs {
+				if effect == buff {
+					temporary = true
+				}
+			}
+			if !temporary && effect != "麻痺" && effect != "二日酔い" && !(effect == "威力上昇" && c.DrankTurn > 0) {
 				effects = append(effects, effect)
 			}
 		}
 		c.Effects = effects
+		c.DrankTurn = 0
+		c.TemporaryBuffs = nil
+		if c.DefinitionID == "suima" {
+			c.Wriggling = !c.Wriggling
+		}
 	}
 	if poisonedTargets > 0 {
 		s.commit("TURN_END_DAMAGE", fmt.Sprintf("%d体が毒により合計%dダメージ", poisonedTargets, poisonDamage))

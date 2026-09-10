@@ -28,16 +28,20 @@ type Position struct {
 	Y int `json:"y"`
 }
 type Character struct {
-	ID            string   `json:"id"`
-	DefinitionID  string   `json:"definitionId"`
-	OwnerID       string   `json:"ownerId"`
-	Name          string   `json:"name"`
-	HP            int      `json:"hp"`
-	MaxHP         int      `json:"maxHP"`
-	Position      Position `json:"position"`
-	Effects       []string `json:"effects"`
-	ReviveUsed    bool     `json:"reviveUsed,omitempty"`
-	DepartureUsed bool     `json:"departureUsed,omitempty"`
+	Wriggling      bool     `json:"wriggling,omitempty"`
+	TemporaryBuffs []string `json:"temporaryBuffs,omitempty"`
+	ID             string   `json:"id"`
+	DefinitionID   string   `json:"definitionId"`
+	OwnerID        string   `json:"ownerId"`
+	Name           string   `json:"name"`
+	HP             int      `json:"hp"`
+	MaxHP          int      `json:"maxHP"`
+	Position       Position `json:"position"`
+	Effects        []string `json:"effects"`
+	ReviveUsed     bool     `json:"reviveUsed,omitempty"`
+	DepartureUsed  bool     `json:"departureUsed,omitempty"`
+	DrankTurn      int      `json:"drankTurn,omitempty"`
+	HangoverTurn   int      `json:"hangoverTurn,omitempty"`
 }
 type Player struct {
 	ID   string `json:"id"`
@@ -285,6 +289,9 @@ func (s *State) ApplyMove(playerID string, c Command) error {
 		return ErrInvalidAction
 	}
 	moveCost := d.MoveCost
+	if s.hasEffect(i, "二日酔い") {
+		moveCost += 5
+	}
 	if s.hasEffect(i, "俊足") {
 		moveCost -= 2
 	}
@@ -318,6 +325,9 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return ErrInvalidAction
 	}
 	attackCost := a.Cost
+	if s.hasEffect(i, "二日酔い") {
+		attackCost += 5
+	}
 	if s.hasEffect(i, "俊敏化") {
 		attackCost -= 2
 	}
@@ -339,6 +349,22 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		return nil
 	}
 	affected := 0
+	if d.ID == "suima" && !s.Characters[i].Wriggling && c.AttackIndex == 1 {
+		for _, effect := range []string{"俊足", "威力上昇"} {
+			if !s.hasEffect(i, effect) {
+				s.addEffect(i, effect)
+				s.Characters[i].TemporaryBuffs = append(s.Characters[i].TemporaryBuffs, effect)
+			}
+		}
+	}
+	if d.ID == "kasuima" && c.AttackIndex == 0 {
+		if !s.hasEffect(i, "威力上昇") {
+			s.Characters[i].Effects = append(s.Characters[i].Effects, "威力上昇")
+		}
+		s.Characters[i].DrankTurn = s.Turn
+		s.Characters[i].HangoverTurn = s.Turn + 2
+	}
+	var pushed []int
 	// 地雷はダメージ計算前にまとめて処理し、全対象に同じ加算値を使う。
 	if d.ID == "berenice" && a.Power > 0 {
 		for j := len(s.TileEffects) - 1; j >= 0; j-- {
@@ -378,7 +404,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		if a.ClearBuffs {
 			s.clearBuffs(j)
 		}
-		if a.Effect != "" && !same && s.roll(i, j, a.Effect, a.EffectChance) {
+		if a.Effect != "" && (!same || a.Target == "any") && s.roll(i, j, a.Effect, a.EffectChance) {
 			s.addEffect(j, a.Effect)
 		}
 		if chance := passiveFor(d.ID).ExtraAttackChance; chance > 0 && !same && s.Characters[j].HP > 0 && s.roll(i, j, "過量使用", chance+s.passiveBoost(i)) {
@@ -389,6 +415,30 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 			}
 		}
 		affected++
+		if d.ID == "kasuima" && c.AttackIndex == 2 && s.Characters[j].HP > 0 {
+			pushed = append(pushed, j)
+		}
+	}
+	for _, target := range pushed {
+		s.pushBack(i, target, c.Direction)
+	}
+	if d.ID == "suima" && !s.Characters[i].Wriggling {
+		if c.AttackIndex == 0 {
+			for j := range s.Characters {
+				if s.Characters[j].DefinitionID == "shincho" && s.Characters[j].HP > 0 {
+					s.Characters[j].HP = max(0, s.Characters[j].HP-40)
+					affected++
+				}
+			}
+		}
+		if c.AttackIndex == 2 {
+			for j := len(s.TileEffects) - 1; j >= 0; j-- {
+				if s.TileEffects[j].OwnerID != playerID && containsPosition(cells, s.TileEffects[j].Position) {
+					s.TileEffects = append(s.TileEffects[:j], s.TileEffects[j+1:]...)
+					affected++
+				}
+			}
+		}
 	}
 	if a.Power > 0 && (a.Target == "enemy" || a.Target == "any") {
 		for j := range s.Bases {
@@ -503,6 +553,13 @@ func (s *State) completeTurnChange() {
 		s.TurnPlayerID = s.Players[0].ID
 	}
 	s.Turn++
+	for i := range s.Characters {
+		c := &s.Characters[i]
+		if c.OwnerID == s.TurnPlayerID && c.HangoverTurn == s.Turn && c.HP > 0 {
+			s.addEffect(i, "二日酔い")
+			c.HangoverTurn = 0
+		}
+	}
 	for i := range s.Players {
 		s.Players[i].Cost = MaxCost
 	}
@@ -530,6 +587,9 @@ func (s *State) actor(playerID, id string) (int, CharacterDefinition, error) {
 	for i := range s.Characters {
 		if s.Characters[i].ID == id && s.Characters[i].OwnerID == playerID && s.Characters[i].HP > 0 {
 			d, _ := Definition(s.Characters[i].DefinitionID)
+			if s.Characters[i].Wriggling && d.AlternateAttacks != nil {
+				d.Attacks = *d.AlternateAttacks
+			}
 			return i, d, nil
 		}
 	}
