@@ -69,8 +69,12 @@ func (UsageSummary) TableName() string { return "web_usage_summaries" }
 type Store struct{ db *gorm.DB }
 
 func New(db *gorm.DB) (*Store, error) {
-	if err := db.AutoMigrate(&Guest{}, &Match{}, &ProcessedCommand{}, &CharacterUsage{}, &UsageSummary{}); err != nil {
+	if err := db.AutoMigrate(&Guest{}, &Match{}, &ProcessedCommand{}, &CharacterUsage{}, &UsageSummary{}, &UsageEvent{}, &UsageTracking{}, &UsageCharacter{}, &WeeklyUsage{}); err != nil {
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	s := &Store{db: db}
+	if err := s.initUsageTracking(); err != nil {
+		return nil, err
+	}
+	return s, nil
 }

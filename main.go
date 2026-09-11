@@ -25,6 +25,10 @@ func main() {
 		write(w, 200, map[string]string{"status": "ok", "database": "mariadb"})
 	})
 	mux.HandleFunc("GET /api/characters", s.characters)
+	mux.HandleFunc("GET /api/character-usage", s.currentCharacterUsage)
+	mux.HandleFunc("GET /api/character-usage/history", s.characterUsageHistory)
+	mux.HandleFunc("GET /api/character-usage/counts.csv", s.characterUsageCSV(false))
+	mux.HandleFunc("GET /api/character-usage/rates.csv", s.characterUsageCSV(true))
 	mux.HandleFunc("POST /api/guests", s.join)
 	mux.HandleFunc("GET /api/me", s.auth(s.me))
 	mux.HandleFunc("PUT /api/me/selection", s.auth(s.selection))
@@ -39,6 +43,19 @@ func main() {
 	mux.HandleFunc("POST /api/matches/{id}/attack", s.auth(s.attack))
 	mux.HandleFunc("POST /api/matches/{id}/end-turn", s.auth(s.endTurn))
 	mux.HandleFunc("POST /api/matches/{id}/surrender", s.auth(s.surrender))
+	go func() {
+		// Finalize newly completed weeks and recover missed runs after downtime.
+		if err := repository.SampleWeeklyUsage(); err != nil {
+			log.Printf("weekly usage: %v", err)
+		}
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := repository.SampleWeeklyUsage(); err != nil {
+				log.Printf("weekly usage: %v", err)
+			}
+		}
+	}()
 	go func() {
 		ticker := time.NewTicker(time.Hour)
 		defer ticker.Stop()

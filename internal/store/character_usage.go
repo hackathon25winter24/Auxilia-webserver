@@ -12,6 +12,9 @@ func recordCharacterUsage(tx *gorm.DB, state *game.State) error {
 	if state.TestOwnerID != "" {
 		return nil
 	}
+	if err := recordUsageEvent(tx, state); err != nil {
+		return err
+	}
 	for _, character := range state.Characters {
 		usage := CharacterUsage{CharacterID: character.DefinitionID, UseCount: 1}
 		if err := tx.Clauses(clause.OnConflict{
