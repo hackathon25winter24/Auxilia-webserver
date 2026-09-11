@@ -67,7 +67,7 @@ var Definitions = []CharacterDefinition{
 			}(),
 		}, AlternateAttacks: &[3]AttackDefinition{
 			func() AttackDefinition {
-				a := atk(":wara:", 20, 0, "any", p(Position{1, -1}, Position{2, -1}, Position{3, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{1, 1}, Position{2, 1}, Position{3, 1}))
+				a := atk(":wara:", 20, 0, "enemy", p(Position{1, -1}, Position{2, -1}, Position{3, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{1, 1}, Position{2, 1}, Position{3, 1}))
 				a.Effect = "鈍化"
 				a.EffectChance = 100
 				return a
@@ -87,7 +87,7 @@ var Definitions = []CharacterDefinition{
 		}(),
 		atk("煙草", 10, 15, "enemy", p(Position{2, -1}, Position{2, 0}, Position{2, 1})),
 		func() AttackDefinition {
-			a := atk("Reverse", 20, 5, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}))
+			a := atk("Reverse", 20, 5, "enemy", p(Position{1, -1}, Position{2, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}, Position{2, 1}))
 			a.Description = "命中したキャラを攻撃方向に2マス押し戻す。移動先が無効なら1マス、そこも無効なら移動しない。"
 			return a
 		}(),
@@ -201,7 +201,7 @@ var Definitions = []CharacterDefinition{
 var passiveDefinitions = map[string][2]string{
 	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。"},
 	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。"},
-	"wellbulus": {"復活", "戦闘中に一度だけ、戦闘不能になったときHP50で復活する。"},
+	"wellbulus": {"輪廻転生", "戦闘中に一度だけ、戦闘不能になったときHP50で復活する。"},
 	"sophie":    {"範囲支援 sowing～播種～", "戦闘開始時に味方全体に俊足を与え、戦闘離脱時に敵全体に鈍足を与える。"},
 	"jude":      {"受け身", "自身が受けるダメージを20軽減する。"},
 	"nadia":     {"対処番号04：過量使用", "命中した敵ごとに50%の確率で、コストを消費せずもう一度攻撃する。"},

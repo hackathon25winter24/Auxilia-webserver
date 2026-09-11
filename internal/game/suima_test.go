@@ -48,8 +48,8 @@ func TestSuimaAlternatesOnOwnTurnsAndTemporaryBuffsExpire(t *testing.T) {
 	if err := suimaAttack(s, 0, Position{3, 2}); err != nil {
 		t.Fatal(err)
 	}
-	if !s.hasEffect(2, "鈍化") || !s.hasEffect(4, "鈍化") {
-		t.Fatal("wara must affect both sides")
+	if s.hasEffect(2, "鈍化") || !s.hasEffect(4, "鈍化") {
+		t.Fatal("wara must affect enemies only")
 	}
 	s.Characters[0].HP = 50
 	if err := suimaAttack(s, 2, Position{2, 2}); err != nil {

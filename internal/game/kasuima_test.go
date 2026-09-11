@@ -108,3 +108,37 @@ func TestKasuimaReverseFallbackAndLanding(t *testing.T) {
 		t.Fatal("landing did not trigger mine")
 	}
 }
+
+func TestReverseExpandedRangeFollowsAttackDirection(t *testing.T) {
+	for _, direction := range []Position{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+		for _, offset := range []Position{{1, -1}, {2, -1}, {1, 0}, {2, 0}, {1, 1}, {2, 1}} {
+			s := kasuimaState()
+			s.BlockedCells = nil
+			s.Bases[0].Position = Position{-1, -1}
+			s.Bases[1].Position = Position{-2, -2}
+			s.Characters[0].Position = Position{3, 2}
+			target := Position{3 + offset.X*direction.X - offset.Y*direction.Y, 2 + offset.X*direction.Y + offset.Y*direction.X}
+			s.Characters[1].Position = target
+			err := s.ApplyAttack("a", Command{ExpectedRevision: s.Revision, CharacterID: s.Characters[0].ID, AttackIndex: 2, Target: target, Direction: direction})
+			if err != nil {
+				t.Fatalf("direction=%v offset=%v: %v", direction, offset, err)
+			}
+			want := target
+			for _, steps := range []int{2, 1} {
+				candidate := Position{target.X + direction.X*steps, target.Y + direction.Y*steps}
+				if onBoard(candidate) {
+					want = candidate
+					break
+				}
+			}
+			if s.Characters[1].HP != 195 || s.Characters[1].Position != want {
+				t.Fatalf("wrong hit/push direction=%v offset=%v: %+v", direction, offset, s.Characters[1])
+			}
+		}
+	}
+	s := kasuimaState()
+	s.Characters[1].OwnerID = "a"
+	if err := kasuimaAttack(s, 2); err == nil || s.Characters[1].HP != 200 || s.Characters[1].Position != (Position{3, 2}) {
+		t.Fatal("Reverse must not affect allies")
+	}
+}
