@@ -191,6 +191,7 @@ func TestClearBuffsPreservesDebuffs(t *testing.T) {
 
 func TestWellbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
 	s := wellbulusFixture()
+	s.Characters[0].Effects = []string{"威力上昇", "俊足", "俊敏化", "毒", "麻痺", "出血", "鈍足", "鈍化", "二日酔い"}
 	s.Characters[1].HP, s.Characters[2].HP = 0, 0
 	s.Characters[3].Position = Position{6, 2}
 	s.Characters[4].Position = Position{4, 2}
@@ -205,6 +206,9 @@ func TestWellbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
 	if s.Finished || s.Characters[0].HP != 50 || !s.Characters[0].ReviveUsed || s.LastEvent.Type != "REVIVED" {
 		t.Fatal("revival must precede defeat")
 	}
+	if len(s.Characters[0].Effects) != 0 {
+		t.Fatal("revival must remove every buff and debuff")
+	}
 	raw, err := json.Marshal(s)
 	if err != nil {
 		t.Fatal(err)
@@ -212,6 +216,9 @@ func TestWellbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
 	var restored State
 	if err := json.Unmarshal(raw, &restored); err != nil {
 		t.Fatal(err)
+	}
+	if len(restored.Characters[0].Effects) != 0 {
+		t.Fatal("cleared effects returned after reload")
 	}
 	if err := attack(&restored); err != nil {
 		t.Fatal(err)
@@ -239,6 +246,9 @@ func TestWellbulusRevivesFromPoisonAndMine(t *testing.T) {
 			}
 			if s.Characters[0].HP != 50 || !s.Characters[0].ReviveUsed {
 				t.Fatal("lethal damage did not trigger revival")
+			}
+			if len(s.Characters[0].Effects) != 0 {
+				t.Fatal("lethal status effect survived revival")
 			}
 		})
 	}

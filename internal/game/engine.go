@@ -683,8 +683,9 @@ func (s *State) checkWinner() {
 		c := &s.Characters[i]
 		if c.DefinitionID == "wellbulus" && c.HP <= 0 && !c.ReviveUsed {
 			c.ReviveUsed = true
+			c.Effects = []string{}
 			c.HP = min(c.MaxHP, 50+s.passiveBoost(i))
-			s.commit("REVIVED", fmt.Sprintf("%sがパッシブによりHP%dで復活", c.Name, c.HP))
+			s.commit("REVIVED", fmt.Sprintf("%sが輪廻転生により全バフ・デバフを解除しHP%dで復活", c.Name, c.HP))
 		}
 	}
 	alive := [2]int{}
