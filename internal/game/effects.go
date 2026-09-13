@@ -14,11 +14,18 @@ func (s *State) hasEffect(character int, effect string) bool {
 	return false
 }
 func (s *State) addEffect(character int, effect string) {
-	if s.Characters[character].DefinitionID == "kasuima" && (effect == "威力上昇" || effect == "俊足" || effect == "俊敏化") {
+	if s.Characters[character].DefinitionID == "kasuima" && isBuff(effect) {
 		return
 	}
-	if s.Characters[character].DefinitionID == "dana" && effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
+	if s.Characters[character].DefinitionID == "dana" && !isBuff(effect) {
 		return
+	}
+	if !isBuff(effect) && s.hasEffect(character, "免疫") {
+		s.removeEffect(character, "免疫")
+		return
+	}
+	if effect == "結界" {
+		s.Characters[character].BarrierTurn = s.Turn + 1
 	}
 	if !s.hasEffect(character, effect) {
 		s.Characters[character].Effects = append(s.Characters[character].Effects, effect)
@@ -50,12 +57,13 @@ func (s *State) roll(actor, target int, effect string, chance int) bool {
 	return int(h.Sum32()%100) < chance
 }
 func (s *State) passiveBoost(character int) int {
+	boost := 0
 	for i, c := range s.Characters {
 		if c.HP > 0 && c.OwnerID == s.Characters[character].OwnerID && passiveFor(c.DefinitionID).PassiveValueBoost > 0 && inSurroundingArea(c.Position, s.Characters[character].Position) && i != character {
-			return passiveFor(c.DefinitionID).PassiveValueBoost
+			boost = max(boost, passiveFor(c.DefinitionID).PassiveValueBoost)
 		}
 	}
-	return 0
+	return boost
 }
 func (s *State) attackPower(actor, power int) int {
 	if s.hasEffect(actor, "二日酔い") {

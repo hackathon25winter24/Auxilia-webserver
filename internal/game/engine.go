@@ -29,6 +29,8 @@ type Position struct {
 }
 type Character struct {
 	UsedSkills     map[string]int `json:"usedSkills,omitempty"`
+	CombatStance   bool           `json:"combatStance,omitempty"`
+	BarrierTurn    int            `json:"barrierTurn,omitempty"`
 	Wriggling      bool           `json:"wriggling,omitempty"`
 	TemporaryBuffs []string       `json:"temporaryBuffs,omitempty"`
 	ID             string         `json:"id"`
@@ -170,6 +172,7 @@ func newState(id string, players [2]Player, selections [2][]string, started bool
 }
 
 func (s *State) applyStartPassives() {
+	defer s.applyTurnStartPassives()
 	for _, source := range s.Characters {
 		if source.DefinitionID != "sophie" {
 			continue
@@ -352,6 +355,18 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		s.commit("TILE_PLACED", fmt.Sprintf("%sが%sマスを設置", s.Characters[i].Name, a.Tile))
 		return nil
 	}
+	if d.ID == "luis" && (!s.Characters[i].CombatStance || c.AttackIndex == 2) {
+		s.applyLuisSkill(i, c.AttackIndex)
+		s.spend(playerID, attackCost)
+		s.commit("SKILL_USED", s.Characters[i].Name+"の"+a.Name)
+		return nil
+	}
+	if d.ID == "ribelet" && c.AttackIndex == 1 {
+		s.addEffect(i, s.randomEffect(i, false))
+	}
+	if d.ID == "ribelet" && c.AttackIndex == 2 && s.hasBuff(i) {
+		a.Power += 60
+	}
 	affected := 0
 	if d.ID == "suima" && !s.Characters[i].Wriggling && c.AttackIndex == 1 {
 		for _, effect := range []string{"俊足", "威力上昇"} {
@@ -392,6 +407,10 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 			continue
 		}
 		if !(a.Target == "any" || a.Target == "ally" && same || a.Target == "enemy" && !same) {
+			continue
+		}
+		if !same && s.consumeBarrier(j) {
+			affected++
 			continue
 		}
 		power := a.Power
@@ -469,6 +488,9 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 			s.Characters[i].UsedSkills = map[string]int{}
 		}
 		s.Characters[i].UsedSkills[a.Name] = s.Turn
+	}
+	if d.ID == "ribelet" && c.AttackIndex == 2 {
+		s.clearBuffs(i)
 	}
 	s.spend(playerID, attackCost)
 	eventType := "ATTACKED"
@@ -563,6 +585,7 @@ func (s *State) completeTurnChange() {
 		s.TurnPlayerID = s.Players[0].ID
 	}
 	s.Turn++
+	s.applyTurnStartPassives()
 	for i := range s.Characters {
 		c := &s.Characters[i]
 		if c.OwnerID == s.TurnPlayerID && c.HangoverTurn == s.Turn && c.HP > 0 {
@@ -597,7 +620,7 @@ func (s *State) actor(playerID, id string) (int, CharacterDefinition, error) {
 	for i := range s.Characters {
 		if s.Characters[i].ID == id && s.Characters[i].OwnerID == playerID && s.Characters[i].HP > 0 {
 			d, _ := Definition(s.Characters[i].DefinitionID)
-			if s.Characters[i].Wriggling && d.AlternateAttacks != nil {
+			if (s.Characters[i].Wriggling || s.Characters[i].CombatStance) && d.AlternateAttacks != nil {
 				d.Attacks = *d.AlternateAttacks
 			}
 			return i, d, nil
