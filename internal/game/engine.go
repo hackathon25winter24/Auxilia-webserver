@@ -355,16 +355,16 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		s.commit("TILE_PLACED", fmt.Sprintf("%sが%sマスを設置", s.Characters[i].Name, a.Tile))
 		return nil
 	}
-	if d.ID == "luis" && (!s.Characters[i].CombatStance || c.AttackIndex == 2) {
-		s.applyLuisSkill(i, c.AttackIndex)
+	if d.ID == "louise" && (!s.Characters[i].CombatStance || c.AttackIndex == 2) {
+		s.applyLouiseSkill(i, c.AttackIndex)
 		s.spend(playerID, attackCost)
 		s.commit("SKILL_USED", s.Characters[i].Name+"の"+a.Name)
 		return nil
 	}
-	if d.ID == "ribelet" && c.AttackIndex == 1 {
+	if d.ID == "liberette" && c.AttackIndex == 1 {
 		s.addEffect(i, s.randomEffect(i, false))
 	}
-	if d.ID == "ribelet" && c.AttackIndex == 2 && s.hasBuff(i) {
+	if d.ID == "liberette" && c.AttackIndex == 2 && s.hasBuff(i) {
 		a.Power += 60
 	}
 	affected := 0
@@ -489,7 +489,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		}
 		s.Characters[i].UsedSkills[a.Name] = s.Turn
 	}
-	if d.ID == "ribelet" && c.AttackIndex == 2 {
+	if d.ID == "liberette" && c.AttackIndex == 2 {
 		s.clearBuffs(i)
 	}
 	s.spend(playerID, attackCost)

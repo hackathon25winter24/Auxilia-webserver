@@ -8,8 +8,8 @@ import (
 func described(a AttackDefinition, text string) AttackDefinition { a.Description = text; return a }
 func init() {
 	Definitions = append(Definitions,
-		CharacterDefinition{ID: "luis", Name: "ルイース", Image: "luis_mini.png", Portrait: "luis.png", MaxHP: 100, MoveCost: 5, MoveRange: 1,
-			PassiveName: "名称未設定", PassiveDescription: "周囲1マス以内の自身以外の味方のパッシブ効果値を20上昇させる。",
+		CharacterDefinition{ID: "louise", Name: "ルイース", Image: "Louise_mini.png", Portrait: "Louise.png", MaxHP: 100, MoveCost: 5, MoveRange: 1,
+			PassiveName: "援護の舞踏", PassiveDescription: "周囲1マス以内の自身以外の味方のパッシブ効果値を20上昇させる。",
 			Attacks: [3]AttackDefinition{
 				described(atk("退魔の舞", 30, 0, "ally", p(Position{0, 0})), "味方全体のデバフを解除し、免疫を付与する。"),
 				described(atk("守護の舞", 30, 0, "ally", p(Position{0, 0})), "自身以外の味方全体を50回復し、自身を含む味方全体に結界を付与する。"),
@@ -19,7 +19,7 @@ func init() {
 				atk("薙ぎの踏", 20, 70, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})),
 				described(atk("掲揚", 25, 0, "ally", p(Position{0, 0})), "自身を支援状態にする。"),
 			}},
-		CharacterDefinition{ID: "ribelet", Name: "リベレット", Image: "ribelet_mini.png", Portrait: "ribelet.png", MaxHP: 150, MoveCost: 8, MoveRange: 1,
+		CharacterDefinition{ID: "liberette", Name: "リベレット", Image: "Liberette_mini.png", Portrait: "Liberette.png", MaxHP: 150, MoveCost: 8, MoveRange: 1,
 			PassiveName: "スペードのエース", PassiveDescription: "自身のターン開始時、生存中の敵味方全員（自身を含む）から1人を選び、ランダムなバフまたはデバフを1つ付与する。",
 			Attacks: [3]AttackDefinition{
 				func() AttackDefinition {
@@ -30,7 +30,7 @@ func init() {
 				described(atk("クラブの８", 10, 0, "ally", p(Position{0, 0})), "自身にランダムなバフを1つ付与する。"),
 				described(atk("ダイヤの10", 20, 30, "enemy", p(Position{2, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{2, 1})), "自身にバフがあればダメージ+60。攻撃後、自身の全バフを解除する。"),
 			}})
-	passiveValues["luis"] = PassiveValues{PassiveValueBoost: 20}
+	passiveValues["louise"] = PassiveValues{PassiveValueBoost: 20}
 }
 
 var randomBuffs = []string{"威力上昇", "俊足", "俊敏化", "免疫", "結界"}
@@ -80,7 +80,7 @@ func (s *State) applyTurnStartPassives() {
 		}
 	}
 	for i, c := range s.Characters {
-		if c.HP <= 0 || c.OwnerID != s.TurnPlayerID || c.DefinitionID != "ribelet" {
+		if c.HP <= 0 || c.OwnerID != s.TurnPlayerID || c.DefinitionID != "liberette" {
 			continue
 		}
 		var targets []int
@@ -97,7 +97,7 @@ func (s *State) applyTurnStartPassives() {
 		s.addEffect(j, effect)
 	}
 }
-func (s *State) applyLuisSkill(actor, attack int) {
+func (s *State) applyLouiseSkill(actor, attack int) {
 	if attack == 2 {
 		s.Characters[actor].CombatStance = !s.Characters[actor].CombatStance
 		return

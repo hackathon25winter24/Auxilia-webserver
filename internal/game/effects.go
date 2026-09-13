@@ -45,7 +45,7 @@ func (s *State) clearDebuffs(character int) {
 func (s *State) clearBuffs(character int) {
 	kept := s.Characters[character].Effects[:0]
 	for _, effect := range s.Characters[character].Effects {
-		if effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
+		if !isBuff(effect) {
 			kept = append(kept, effect)
 		}
 	}
