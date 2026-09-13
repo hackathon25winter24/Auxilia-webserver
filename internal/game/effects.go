@@ -14,11 +14,18 @@ func (s *State) hasEffect(character int, effect string) bool {
 	return false
 }
 func (s *State) addEffect(character int, effect string) {
-	if s.Characters[character].DefinitionID == "kasuima" && (effect == "威力上昇" || effect == "俊足" || effect == "俊敏化") {
+	if s.Characters[character].DefinitionID == "kasuima" && isBuff(effect) {
 		return
 	}
-	if s.Characters[character].DefinitionID == "dana" && effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
+	if s.Characters[character].DefinitionID == "dana" && !isBuff(effect) {
 		return
+	}
+	if !isBuff(effect) && s.hasEffect(character, "免疫") {
+		s.removeEffect(character, "免疫")
+		return
+	}
+	if effect == "結界" {
+		s.Characters[character].BarrierTurn = s.Turn + 1
 	}
 	if !s.hasEffect(character, effect) {
 		s.Characters[character].Effects = append(s.Characters[character].Effects, effect)
@@ -38,7 +45,7 @@ func (s *State) clearDebuffs(character int) {
 func (s *State) clearBuffs(character int) {
 	kept := s.Characters[character].Effects[:0]
 	for _, effect := range s.Characters[character].Effects {
-		if effect != "威力上昇" && effect != "俊足" && effect != "俊敏化" {
+		if !isBuff(effect) {
 			kept = append(kept, effect)
 		}
 	}
@@ -50,12 +57,13 @@ func (s *State) roll(actor, target int, effect string, chance int) bool {
 	return int(h.Sum32()%100) < chance
 }
 func (s *State) passiveBoost(character int) int {
+	boost := 0
 	for i, c := range s.Characters {
 		if c.HP > 0 && c.OwnerID == s.Characters[character].OwnerID && passiveFor(c.DefinitionID).PassiveValueBoost > 0 && inSurroundingArea(c.Position, s.Characters[character].Position) && i != character {
-			return passiveFor(c.DefinitionID).PassiveValueBoost
+			boost = max(boost, passiveFor(c.DefinitionID).PassiveValueBoost)
 		}
 	}
-	return 0
+	return boost
 }
 func (s *State) attackPower(actor, power int) int {
 	if s.hasEffect(actor, "二日酔い") {
@@ -245,4 +253,96 @@ func (s *State) healNearby(source, amount int) (int, int) {
 		}
 	}
 	return targets, total
+}
+
+var randomBuffs = []string{"威力上昇", "俊足", "俊敏化", "免疫", "結界"}
+var randomDebuffs = []string{"毒", "麻痺", "鈍足", "鈍化", "出血"}
+
+func isBuff(effect string) bool {
+	for _, e := range randomBuffs {
+		if e == effect {
+			return true
+		}
+	}
+	return false
+}
+func (s *State) hasBuff(i int) bool {
+	for _, e := range s.Characters[i].Effects {
+		if isBuff(e) {
+			return true
+		}
+	}
+	return false
+}
+func (s *State) removeEffect(i int, effect string) {
+	kept := s.Characters[i].Effects[:0]
+	for _, e := range s.Characters[i].Effects {
+		if e != effect {
+			kept = append(kept, e)
+		}
+	}
+	s.Characters[i].Effects = kept
+}
+func (s *State) randomIndex(actor int, salt string, n int) int {
+	h := fnv.New64a()
+	fmt.Fprintf(h, "%s:%d:%d:%s:%s", s.MatchID, s.Revision, s.Turn, s.Characters[actor].ID, salt)
+	return int(h.Sum64() % uint64(n))
+}
+func (s *State) randomEffect(actor int, includeDebuffs bool) string {
+	effects := append([]string{}, randomBuffs...)
+	if includeDebuffs {
+		effects = append(effects, randomDebuffs...)
+	}
+	return effects[s.randomIndex(actor, "effect", len(effects))]
+}
+func (s *State) applyTurnStartPassives() {
+	for i, c := range s.Characters {
+		if c.BarrierTurn < s.Turn {
+			s.removeEffect(i, "結界")
+		}
+	}
+	for i, c := range s.Characters {
+		if c.HP <= 0 || c.OwnerID != s.TurnPlayerID || c.DefinitionID != "liberette" {
+			continue
+		}
+		var targets []int
+		for j, t := range s.Characters {
+			if t.HP > 0 {
+				targets = append(targets, j)
+			}
+		}
+		if len(targets) == 0 {
+			continue
+		}
+		j := targets[s.randomIndex(i, "target", len(targets))]
+		effect := s.randomEffect(i, true)
+		s.addEffect(j, effect)
+	}
+}
+func (s *State) applyLouiseSkill(actor, attack int) {
+	if attack == 2 {
+		s.Characters[actor].CombatStance = !s.Characters[actor].CombatStance
+		return
+	}
+	for j, c := range s.Characters {
+		if c.HP <= 0 || c.OwnerID != s.Characters[actor].OwnerID {
+			continue
+		}
+		if attack == 0 {
+			s.clearDebuffs(j)
+			s.addEffect(j, "免疫")
+		} else {
+			if j != actor {
+				s.Characters[j].HP = min(c.MaxHP, c.HP+50)
+			}
+			s.addEffect(j, "結界")
+		}
+	}
+}
+func (s *State) consumeBarrier(i int) bool {
+	if s.hasEffect(i, "結界") && s.Characters[i].BarrierTurn == s.Turn {
+		s.removeEffect(i, "結界")
+		return true
+	}
+	return false
 }

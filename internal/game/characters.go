@@ -30,6 +30,8 @@ type CharacterDefinition struct {
 	Attacks            [3]AttackDefinition  `json:"attacks"`
 }
 
+func described(a AttackDefinition, text string) AttackDefinition { a.Description = text; return a }
+
 func p(points ...Position) []Position { return points }
 func allyBuff(a AttackDefinition, effect string) AttackDefinition {
 	a.AllyEffect = effect
@@ -196,9 +198,31 @@ var Definitions = []CharacterDefinition{
 		a.EffectChance = 80
 		return a
 	}(), atk("活性化ガス", 20, -30, "ally", p(Position{0, 0}))}},
+	{ID: "louise", Name: "ルイース", Image: "Louise_mini.png", Portrait: "Louise.png", MaxHP: 100, MoveCost: 5, MoveRange: 1,
+		Attacks: [3]AttackDefinition{
+			described(atk("退魔の舞", 30, 0, "ally", p(Position{0, 0})), "味方全体のデバフを解除し、免疫を付与する。"),
+			described(atk("守護の舞", 30, 0, "ally", p(Position{0, 0})), "自身以外の味方全体を50回復し、自身を含む味方全体に結界を付与する。"),
+			described(atk("降納", 25, 0, "ally", p(Position{0, 0})), "自身を臨戦状態にする。"),
+		}, AlternateAttacks: &[3]AttackDefinition{
+			atk("突撃の踏", 20, 70, "enemy", p(Position{1, 0}, Position{2, 0}, Position{3, 0})),
+			atk("薙ぎの踏", 20, 70, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1})),
+			described(atk("掲揚", 25, 0, "ally", p(Position{0, 0})), "自身を支援状態にする。"),
+		}},
+	{ID: "liberette", Name: "リベレット", Image: "Liberette_mini.png", Portrait: "Liberette.png", MaxHP: 150, MoveCost: 8, MoveRange: 1,
+		Attacks: [3]AttackDefinition{
+			func() AttackDefinition {
+				a := atk("ハートの４", 25, -30, "ally", p(Position{0, 0}))
+				a.ClearDebuffs = true
+				return a
+			}(),
+			described(atk("クラブの８", 10, 0, "ally", p(Position{0, 0})), "自身にランダムなバフを1つ付与する。"),
+			described(atk("ダイヤの10", 20, 30, "enemy", p(Position{2, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{2, 1})), "自身にバフがあればダメージ+60。攻撃後、自身の全バフを解除する。"),
+		}},
 }
 
 var passiveDefinitions = map[string][2]string{
+	"louise":    {"援護の舞踏", "周囲1マス以内の自身以外の味方のパッシブ効果値を20上昇させる。"},
+	"liberette": {"スペードのエース", "自身のターン開始時、生存中の敵味方全員（自身を含む）から1人を選び、ランダムなバフまたはデバフを1つ付与する。"},
 	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。"},
 	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。"},
 	"wellbulus": {"輪廻転生", "戦闘中に一度だけ、戦闘不能になったとき全てのバフ・デバフを解除し、HP50で復活する。"},
@@ -230,6 +254,7 @@ type PassiveValues struct {
 }
 
 var passiveValues = map[string]PassiveValues{
+	"louise":  {PassiveValueBoost: 20},
 	"jude":    {DamageReduction: 20},
 	"nadia":   {ExtraAttackChance: 50},
 	"aoi":     {TurnHeal: 30, ExcludeSelf: true},
