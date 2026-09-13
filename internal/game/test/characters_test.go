@@ -2,7 +2,6 @@ package game
 
 import "testing"
 
-
 func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 	type attackNumbers struct {
 		cost, power, effectChance int
@@ -61,7 +60,7 @@ func TestPassiveNumericValuesMatchCharacterSpec(t *testing.T) {
 		"sena":    {IgnorePassiveReduce: true},
 		"chiyo":   {FullHPAttackBoost: 50},
 		"shincho": {AttackBoost: 10, TurnHeal: 10},
-		"zina":    {PassiveValueBoost: 10},
+		"zina":    {DebuffedDamageMultiplier: 2},
 	}
 	for id, want := range tests {
 		if got := passiveFor(id); got != want {

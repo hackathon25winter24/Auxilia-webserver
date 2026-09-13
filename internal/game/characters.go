@@ -235,7 +235,7 @@ var passiveDefinitions = map[string][2]string{
 	"berenice":  {"爆弾処理", "地雷マスのダメージを受けない。攻撃範囲の地雷を取り除き、個数×10だけ攻撃ダメージを増加する。"},
 	"chiyo":     {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
 	"shincho":   {":ganbare-:", "周囲1マス以内の味方（自身を含む）の攻撃ダメージを10上昇させ、自身のターン終了時に範囲内の味方のHPを10回復する。"},
-	"zina":      {"補給拠点", "周囲1マス以内にいる自身以外の味方のパッシブ効果値を10上昇させる。"},
+	"zina":      {"弱体拡張戦術", "攻撃対象がデバフを持っている場合、その対象への攻撃ダメージが2倍になる。"},
 	"dana":      {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
 }
 
@@ -243,14 +243,15 @@ var passiveDefinitions = map[string][2]string{
 // Keeping these beside the base stats and attacks makes character balancing a
 // data-only change instead of requiring edits to the battle engine.
 type PassiveValues struct {
-	AttackBoost         int
-	DamageReduction     int
-	ExtraAttackChance   int
-	FullHPAttackBoost   int
-	TurnHeal            int
-	PassiveValueBoost   int
-	IgnorePassiveReduce bool
-	ExcludeSelf         bool
+	DebuffedDamageMultiplier int
+	AttackBoost              int
+	DamageReduction          int
+	ExtraAttackChance        int
+	FullHPAttackBoost        int
+	TurnHeal                 int
+	PassiveValueBoost        int
+	IgnorePassiveReduce      bool
+	ExcludeSelf              bool
 }
 
 var passiveValues = map[string]PassiveValues{
@@ -261,7 +262,7 @@ var passiveValues = map[string]PassiveValues{
 	"sena":    {IgnorePassiveReduce: true},
 	"chiyo":   {FullHPAttackBoost: 50},
 	"shincho": {AttackBoost: 10, TurnHeal: 10},
-	"zina":    {PassiveValueBoost: 10},
+	"zina":    {DebuffedDamageMultiplier: 2},
 }
 
 func passiveFor(id string) PassiveValues { return passiveValues[id] }

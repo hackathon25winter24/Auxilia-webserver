@@ -419,6 +419,9 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 			if !passiveFor(d.ID).IgnorePassiveReduce {
 				power = max(0, power-s.damageReduction(j))
 			}
+			if multiplier := passiveFor(d.ID).DebuffedDamageMultiplier; multiplier > 1 && s.hasDebuff(j) {
+				power *= multiplier
+			}
 		}
 		s.Characters[j].HP = clamp(s.Characters[j].HP-power, 0, s.Characters[j].MaxHP)
 		if a.ClearDebuffs {

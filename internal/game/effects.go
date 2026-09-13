@@ -31,11 +31,25 @@ func (s *State) addEffect(character int, effect string) {
 		s.Characters[character].Effects = append(s.Characters[character].Effects, effect)
 	}
 }
+func isDebuff(effect string) bool {
+	switch effect {
+	case "毒", "麻痺", "鈍足", "鈍化", "出血", "二日酔い":
+		return true
+	}
+	return false
+}
+func (s *State) hasDebuff(character int) bool {
+	for _, effect := range s.Characters[character].Effects {
+		if isDebuff(effect) {
+			return true
+		}
+	}
+	return false
+}
 func (s *State) clearDebuffs(character int) {
-	debuffs := map[string]bool{"毒": true, "麻痺": true, "鈍足": true, "鈍化": true, "出血": true, "二日酔い": true}
 	kept := s.Characters[character].Effects[:0]
 	for _, effect := range s.Characters[character].Effects {
-		if !debuffs[effect] {
+		if !isDebuff(effect) {
 			kept = append(kept, effect)
 		}
 	}
