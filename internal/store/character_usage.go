@@ -38,7 +38,7 @@ func (s *Store) CharacterUsageCounts() (map[string]uint64, uint64, error) {
 	}
 	counts := make(map[string]uint64, len(rows))
 	for _, row := range rows {
-		counts[row.CharacterID] = row.UseCount
+		counts[game.CanonicalCharacterID(row.CharacterID)] += row.UseCount
 	}
 	var summary UsageSummary
 	err := s.db.First(&summary, "id = ?", "global").Error

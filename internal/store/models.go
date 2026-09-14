@@ -1,6 +1,7 @@
 package store
 
 import (
+	"auxilia-webserver/internal/game"
 	"encoding/json"
 	"errors"
 	"time"
@@ -27,6 +28,9 @@ func (Guest) TableName() string { return "web_guests" }
 func (g Guest) Selection() []string {
 	var result []string
 	_ = json.Unmarshal([]byte(g.SelectionJSON), &result)
+	for i := range result {
+		result[i] = game.CanonicalCharacterID(result[i])
+	}
 	return result
 }
 

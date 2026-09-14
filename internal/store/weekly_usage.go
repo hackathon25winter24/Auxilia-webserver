@@ -103,6 +103,11 @@ func recordUsageEvent(tx *gorm.DB, state *game.State) error {
 	return tx.Create(&UsageEvent{MatchID: state.MatchID, StartedAt: time.Now().UTC(), PicksJSON: string(data)}).Error
 }
 func usageWeek(start time.Time, counts map[string]uint64, total uint64) UsageWeek {
+	normalized := make(map[string]uint64, len(counts))
+	for id, count := range counts {
+		normalized[game.CanonicalCharacterID(id)] += count
+	}
+	counts = normalized
 	rates := map[string]*float64{}
 	for id, n := range counts {
 		rates[id] = nil

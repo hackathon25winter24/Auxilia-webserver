@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func wellbulusFixture() *State {
-	s := NewState("wellbulus", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"wellbulus", "sophie", "jude"}, {"dana", "chiyo", "zina"}})
+func verbulusFixture() *State {
+	s := NewState("verbulus", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"verbulus", "sophie", "jude"}, {"dana", "chiyo", "zina"}})
 	s.TurnPlayerID = "a"
 	positions := []Position{{3, 2}, {3, 3}, {1, 0}, {4, 2}, {4, 3}, {7, 4}}
 	for i := range s.Characters {
@@ -16,19 +16,19 @@ func wellbulusFixture() *State {
 	return s
 }
 
-func wellbulusAct(s *State, attack int, target Position) error {
+func verbulusAct(s *State, attack int, target Position) error {
 	return s.ApplyAttack("a", Command{CharacterID: s.Characters[0].ID, ExpectedRevision: s.Revision, AttackIndex: attack, Target: target, Direction: Position{1, 0}})
 }
 
-func TestWellbulusDispelAndHeal(t *testing.T) {
-	s := wellbulusFixture()
+func TestVerbulusDispelAndHeal(t *testing.T) {
+	s := verbulusFixture()
 	for i := range s.Characters {
 		s.Characters[i].Effects = []string{"威力上昇", "俊足", "俊敏化", "毒"}
 	}
 	s.Characters[0].Effects = nil
 	s.Characters[1].Position = Position{0, 4}
 	before := s.Characters[3].HP
-	if err := wellbulusAct(s, 0, Position{4, 2}); err != nil {
+	if err := verbulusAct(s, 0, Position{4, 2}); err != nil {
 		t.Fatal(err)
 	}
 	if s.Characters[3].HP != before-30 || !reflect.DeepEqual(s.Characters[3].Effects, []string{"毒"}) {
@@ -43,11 +43,11 @@ func TestWellbulusDispelAndHeal(t *testing.T) {
 		t.Fatal("wrong dispel event/cost")
 	}
 
-	s = wellbulusFixture()
+	s = verbulusFixture()
 	for i := range s.Characters {
 		s.Characters[i].HP = 50
 	}
-	if err := wellbulusAct(s, 2, Position{3, 2}); err != nil {
+	if err := verbulusAct(s, 2, Position{3, 2}); err != nil {
 		t.Fatal(err)
 	}
 	for i, want := range []int{100, 100, 50, 50, 50, 50} {
@@ -61,8 +61,8 @@ func TestWellbulusDispelAndHeal(t *testing.T) {
 }
 
 func TestImmutablePlacementAndPersistence(t *testing.T) {
-	s := wellbulusFixture()
-	if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
+	s := verbulusFixture()
+	if err := verbulusAct(s, 1, Position{4, 2}); err != nil {
 		t.Fatal(err)
 	}
 	if len(s.TileEffects) != 1 || s.TileEffects[0].HP != 170 || s.cost("a") != 30 {
@@ -94,7 +94,7 @@ func TestImmutablePlacementAndPersistence(t *testing.T) {
 
 func TestImmutableCannotBeOverwrittenOrPlacedOnForbiddenCells(t *testing.T) {
 	for _, kind := range []string{"base", "blocked", "immutable"} {
-		s := wellbulusFixture()
+		s := verbulusFixture()
 		switch kind {
 		case "base":
 			s.Bases[1].Position = Position{4, 2}
@@ -103,12 +103,12 @@ func TestImmutableCannotBeOverwrittenOrPlacedOnForbiddenCells(t *testing.T) {
 		case "immutable":
 			s.setTile(Position{4, 2}, "不変", "b")
 		}
-		if err := wellbulusAct(s, 1, Position{4, 2}); err == nil || s.cost("a") != 50 {
+		if err := verbulusAct(s, 1, Position{4, 2}); err == nil || s.cost("a") != 50 {
 			t.Fatalf("invalid placement accepted: %s", kind)
 		}
 	}
 	for _, id := range []string{"dana", "tsukiha", "berenice"} {
-		s := wellbulusFixture()
+		s := verbulusFixture()
 		s.Characters[0].DefinitionID = id
 		s.Characters[3].Position = Position{6, 2}
 		s.setTile(Position{4, 2}, "不変", "b")
@@ -116,19 +116,19 @@ func TestImmutableCannotBeOverwrittenOrPlacedOnForbiddenCells(t *testing.T) {
 		if id == "tsukiha" {
 			attack = 2
 		}
-		if err := wellbulusAct(s, attack, Position{4, 2}); err == nil {
+		if err := verbulusAct(s, attack, Position{4, 2}); err == nil {
 			t.Fatalf("%s overwrote immutable tile", id)
 		}
 	}
-	s := wellbulusFixture()
+	s := verbulusFixture()
 	s.setTile(Position{4, 2}, "毒ガス", "b")
-	if err := wellbulusAct(s, 1, Position{4, 2}); err == nil || s.TileEffects[0].Type != "毒ガス" {
+	if err := verbulusAct(s, 1, Position{4, 2}); err == nil || s.TileEffects[0].Type != "毒ガス" {
 		t.Fatal("must not replace an existing tile")
 	}
 }
 
 func TestImmutableDecayAndDestruction(t *testing.T) {
-	s := wellbulusFixture()
+	s := verbulusFixture()
 	s.setTile(Position{4, 2}, "不変", "a")
 	before := s.Characters[3].HP
 	for i, player := range []string{"a", "b", "a", "b"} {
@@ -148,23 +148,23 @@ func TestImmutableDecayAndDestruction(t *testing.T) {
 
 func TestImmutableCanBeAttackedByEitherSide(t *testing.T) {
 	for _, owner := range []string{"a", "b"} {
-		s := wellbulusFixture()
+		s := verbulusFixture()
 		s.Characters[0].DefinitionID = "chiyo"
 		s.Characters[0].HP = 100                  // no full HP bonus
 		s.Characters[1].Position = Position{0, 4} // no Sophie aura
 		s.Characters[3].Position = Position{6, 2} // empty tile can be targeted
 		s.setTile(Position{4, 2}, "不変", owner)
-		if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
+		if err := verbulusAct(s, 1, Position{4, 2}); err != nil {
 			t.Fatal(err)
 		}
 		if s.TileEffects[0].HP != 110 {
 			t.Fatal("wrong attack damage")
 		}
-		if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
+		if err := verbulusAct(s, 1, Position{4, 2}); err != nil {
 			t.Fatal(err)
 		}
 		s.Players[0].Cost = MaxCost
-		if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
+		if err := verbulusAct(s, 1, Position{4, 2}); err != nil {
 			t.Fatal(err)
 		}
 		if len(s.TileEffects) != 0 {
@@ -189,8 +189,8 @@ func TestClearBuffsPreservesDebuffs(t *testing.T) {
 	}
 }
 
-func TestWellbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
-	s := wellbulusFixture()
+func TestVerbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
+	s := verbulusFixture()
 	s.Characters[0].Effects = []string{"威力上昇", "俊足", "俊敏化", "毒", "麻痺", "出血", "鈍足", "鈍化", "二日酔い"}
 	s.Characters[1].HP, s.Characters[2].HP = 0, 0
 	s.Characters[3].Position = Position{6, 2}
@@ -228,10 +228,10 @@ func TestWellbulusRevivesOnceBeforeDefeatAndPersistsUsage(t *testing.T) {
 	}
 }
 
-func TestWellbulusRevivesFromPoisonAndMine(t *testing.T) {
+func TestVerbulusRevivesFromPoisonAndMine(t *testing.T) {
 	for _, cause := range []string{"poison", "mine"} {
 		t.Run(cause, func(t *testing.T) {
-			s := wellbulusFixture()
+			s := verbulusFixture()
 			s.Characters[0].HP = 30
 			var err error
 			if cause == "poison" {
@@ -254,14 +254,14 @@ func TestWellbulusRevivesFromPoisonAndMine(t *testing.T) {
 	}
 }
 
-func TestWellbulusDispelHitsEverySurroundingEnemy(t *testing.T) {
+func TestVerbulusDispelHitsEverySurroundingEnemy(t *testing.T) {
 	for _, offset := range []Position{{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}, {2, 0}} {
-		s := wellbulusFixture()
+		s := verbulusFixture()
 		s.Characters[1].Position = Position{0, 4}
 		s.Characters[3].Position = Position{3 + offset.X, 2 + offset.Y}
 		s.Characters[3].Effects = []string{"威力上昇", "毒"}
 		before := s.Characters[3].HP
-		err := wellbulusAct(s, 0, s.Characters[3].Position)
+		err := verbulusAct(s, 0, s.Characters[3].Position)
 		if offset.X == 2 {
 			if err == nil || s.Characters[3].HP != before {
 				t.Fatal("out-of-range attack accepted")
@@ -273,19 +273,19 @@ func TestWellbulusDispelHitsEverySurroundingEnemy(t *testing.T) {
 }
 
 func TestImmutableDoesNotPreventActionsAndReceivesAreaDamage(t *testing.T) {
-	s := wellbulusFixture()
+	s := verbulusFixture()
 	s.setTile(s.Characters[0].Position, "不変", "b")
 	s.Characters[0].HP = 50
-	if err := wellbulusAct(s, 2, s.Characters[0].Position); err != nil || s.Characters[0].HP != 100 {
+	if err := verbulusAct(s, 2, s.Characters[0].Position); err != nil || s.Characters[0].HP != 100 {
 		t.Fatal("trapped character cannot heal")
 	}
-	s = wellbulusFixture()
+	s = verbulusFixture()
 	s.Characters[0].DefinitionID = "chiyo"
 	s.Characters[0].HP = 100
 	s.Characters[1].Position = Position{0, 4}
 	s.setTile(Position{4, 2}, "不変", "b")
 	before := s.Characters[3].HP
-	if err := wellbulusAct(s, 1, Position{4, 2}); err != nil {
+	if err := verbulusAct(s, 1, Position{4, 2}); err != nil {
 		t.Fatal(err)
 	}
 	if s.Characters[3].HP != before-60 || s.TileEffects[0].HP != 110 {

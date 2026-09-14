@@ -316,7 +316,7 @@ func (s *State) applyTurnStartPassives() {
 		}
 	}
 	for i, c := range s.Characters {
-		if c.HP <= 0 || c.DefinitionID != "liberette" {
+		if c.HP <= 0 || c.OwnerID != s.TurnPlayerID || c.DefinitionID != "liberette" {
 			continue
 		}
 		var targets []int

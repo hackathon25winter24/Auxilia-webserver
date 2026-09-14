@@ -7,7 +7,7 @@ import (
 )
 
 func suimaState() *State {
-	s := NewState("suima", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"suima", "shincho", "jude"}, {"shincho", "jude"}})
+	s := NewState("suima", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"suima", "shicho", "jude"}, {"shicho", "jude"}})
 	s.TurnPlayerID = "a"
 	positions := []Position{{2, 2}, {0, 4}, {3, 2}, {7, 4}, {4, 2}}
 	for i := range s.Characters {
@@ -71,7 +71,7 @@ func TestSuimaGlobalDamageAndEnemyTileRemoval(t *testing.T) {
 		t.Fatal(err)
 	}
 	if s.Characters[1].HP != 40 || s.Characters[3].HP != 40 {
-		t.Fatal("all Shincho must receive global 40")
+		t.Fatal("all Shicho must receive global 40")
 	}
 	s = suimaState()
 	s.setTile(Position{4, 1}, "不変", "b")

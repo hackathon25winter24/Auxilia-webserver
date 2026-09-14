@@ -85,6 +85,9 @@ func (s *service) selection(w http.ResponseWriter, r *http.Request, g *store.Gue
 	if decode(w, r, &in) != nil {
 		return
 	}
+	for i := range in.CharacterIDs {
+		in.CharacterIDs[i] = game.CanonicalCharacterID(in.CharacterIDs[i])
+	}
 	if len(in.CharacterIDs) != 3 || hasDuplicates(in.CharacterIDs) {
 		problem(w, 400, "異なるキャラクターを3体選択してください")
 		return

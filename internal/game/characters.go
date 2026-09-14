@@ -94,7 +94,7 @@ var Definitions = []CharacterDefinition{
 			return a
 		}(),
 	}},
-	{ID: "wellbulus", Name: "ウェルブルス", Image: "wellbulus_mini.png", Portrait: "wellbulus.png", MaxHP: 150, MoveCost: 5, MoveRange: 1, Attacks: [3]AttackDefinition{
+	{ID: "verbulus", Name: "ウェルブルス", Image: "Verbulus_mini.png", Portrait: "Verbulus.png", MaxHP: 150, MoveCost: 5, MoveRange: 1, Attacks: [3]AttackDefinition{
 		func() AttackDefinition {
 			a := atk("栄枯盛衰", 20, 30, "enemy", p(Position{-1, -1}, Position{0, -1}, Position{1, -1}, Position{-1, 0}, Position{1, 0}, Position{-1, 1}, Position{0, 1}, Position{1, 1}))
 			a.ClearBuffs = true
@@ -124,12 +124,12 @@ var Definitions = []CharacterDefinition{
 		a.EffectChance = 20
 		return a
 	}(), func() AttackDefinition {
-		a := atk("対処番号03：前方範囲殲滅", 20, 50, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}))
+		a := atk("対処番号03：前方範囲殲滅", 20, 40, "enemy", p(Position{1, -1}, Position{1, 0}, Position{1, 1}))
 		a.Effect = "毒"
 		a.EffectChance = 40
 		return a
 	}(), func() AttackDefinition {
-		a := atk("対処番号02：前方殲滅・改", 30, 70, "enemy", adjacent)
+		a := atk("対処番号02：前方殲滅・改", 30, 60, "enemy", adjacent)
 		a.Effect = "毒"
 		a.EffectChance = 60
 		return a
@@ -172,7 +172,7 @@ var Definitions = []CharacterDefinition{
 		a.EffectChance = 50
 		return a
 	}(), atk("真向斬り", 50, 220, "enemy", adjacent)}},
-	{ID: "shincho", Name: "新著", Image: "Shincho_mini.png", Portrait: "Shincho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 240, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 10, -40, "any", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
+	{ID: "shicho", Name: "新著", Image: "Shicho_mini.png", Portrait: "Shicho.png", MaxHP: 80, MoveCost: 15, MoveRange: 2, Attacks: [3]AttackDefinition{atk("進捗どうですか？", 20, 240, "any", p(Position{-2, 0}, Position{-1, -1}, Position{-1, 0}, Position{-1, 1}, Position{0, -2}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{0, 2}, Position{1, -1}, Position{1, 0}, Position{1, 1}, Position{2, 0})), atk(":oyoo:", 10, -40, "any", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0})), func() AttackDefinition {
 		a := atk(":iihanashi:", 10, 0, "any", p(Position{-1, 0}, Position{0, -1}, Position{0, 0}, Position{0, 1}, Position{1, 0}))
 		a.ClearDebuffs = true
 		return a
@@ -222,19 +222,19 @@ var Definitions = []CharacterDefinition{
 
 var passiveDefinitions = map[string][2]string{
 	"louise":    {"援護の舞踏", "周囲1マス以内の自身以外の味方のパッシブ効果値を20上昇させる。"},
-	"liberette": {"スペードのエース", "敵味方どちらのターン開始時にも、生存中の敵味方全員（自身を含む）から1人を選び、ランダムなバフまたはデバフを1つ付与する。リベレットが複数いる場合は、それぞれが発動する。"},
+	"liberette": {"スペードのエース", "自分のターン開始時、生存中の敵味方全員（自身を含む）から1人を選び、ランダムなバフまたはデバフを1つ付与する。"},
 	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。"},
 	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。"},
-	"wellbulus": {"輪廻転生", "戦闘中に一度だけ、戦闘不能になったとき全てのバフ・デバフを解除し、HP50で復活する。"},
+	"verbulus":  {"輪廻転生", "戦闘中に一度だけ、戦闘不能になったとき全てのバフ・デバフを解除し、HP50で復活する。"},
 	"sophie":    {"範囲支援 sowing～播種～", "戦闘開始時に味方全体に俊足を与え、戦闘離脱時に敵全体に鈍足を与える。"},
 	"jude":      {"受け身", "自身が受けるダメージを20軽減する。"},
-	"nadia":     {"対処番号04：過量使用", "命中した敵ごとに50%の確率で、コストを消費せずもう一度攻撃する。"},
+	"nadia":     {"対処番号04：過量使用", "命中した敵に、ダメージを半分にしてコストを消費せず同じ攻撃を必ず1回追加する。追撃から再追撃は発生しない。"},
 	"tsukiha":   {"忍法：隠れ身の術", "デバフマスの影響を受けない。"},
 	"aoi":       {"藤娘～ふじむすめ～", "自身のターン終了時、周囲1マス以内にいる自身以外の味方のHPを30回復する。"},
 	"sena":      {"一条流槍術：翻弄", "敵のパッシブによるダメージ軽減を無視して攻撃する。"},
 	"berenice":  {"爆弾処理", "地雷マスのダメージを受けない。攻撃範囲の地雷を取り除き、個数×10だけ攻撃ダメージを増加する。"},
 	"chiyo":     {"刀剣拝見", "HPが最大のとき、攻撃ダメージを50上昇させる。"},
-	"shincho":   {":ganbare-:", "周囲1マス以内の味方（自身を含む）の攻撃ダメージを10上昇させ、自身のターン終了時に範囲内の味方のHPを10回復する。"},
+	"shicho":    {":ganbare-:", "周囲1マス以内の味方（自身を含む）の攻撃ダメージを10上昇させ、自身のターン終了時に範囲内の味方のHPを10回復する。"},
 	"zina":      {"弱体拡張戦術", "攻撃対象がデバフを持っている場合、その対象への攻撃ダメージが2倍になる。"},
 	"dana":      {"毒物耐性", "デバフの影響を受けない。デバフマスによるダメージや移動コスト増加は受ける。"},
 }
@@ -243,6 +243,7 @@ var passiveDefinitions = map[string][2]string{
 // Keeping these beside the base stats and attacks makes character balancing a
 // data-only change instead of requiring edits to the battle engine.
 type PassiveValues struct {
+	ExtraAttackDamagePercent int
 	DebuffedDamageMultiplier int
 	AttackBoost              int
 	DamageReduction          int
@@ -255,14 +256,14 @@ type PassiveValues struct {
 }
 
 var passiveValues = map[string]PassiveValues{
-	"louise":  {PassiveValueBoost: 20},
-	"jude":    {DamageReduction: 20},
-	"nadia":   {ExtraAttackChance: 50},
-	"aoi":     {TurnHeal: 30, ExcludeSelf: true},
-	"sena":    {IgnorePassiveReduce: true},
-	"chiyo":   {FullHPAttackBoost: 50},
-	"shincho": {AttackBoost: 10, TurnHeal: 10},
-	"zina":    {DebuffedDamageMultiplier: 2},
+	"louise": {PassiveValueBoost: 20},
+	"jude":   {DamageReduction: 20},
+	"nadia":  {ExtraAttackChance: 100, ExtraAttackDamagePercent: 50},
+	"aoi":    {TurnHeal: 30, ExcludeSelf: true},
+	"sena":   {IgnorePassiveReduce: true},
+	"chiyo":  {FullHPAttackBoost: 50},
+	"shicho": {AttackBoost: 10, TurnHeal: 10},
+	"zina":   {DebuffedDamageMultiplier: 2},
 }
 
 func passiveFor(id string) PassiveValues { return passiveValues[id] }
@@ -285,6 +286,7 @@ func init() {
 }
 
 func Definition(id string) (CharacterDefinition, bool) {
+	id = CanonicalCharacterID(id)
 	for _, d := range Definitions {
 		if d.ID == id {
 			return d, true

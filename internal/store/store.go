@@ -285,6 +285,9 @@ func decodeState(raw string) (*game.State, error) {
 		return nil, err
 	}
 	state.EnsureBases()
+	for i := range state.Characters {
+		state.Characters[i].DefinitionID = game.CanonicalCharacterID(state.Characters[i].DefinitionID)
+	}
 	return &state, nil
 }
 func saveState(tx *gorm.DB, m *Match, state *game.State) error {

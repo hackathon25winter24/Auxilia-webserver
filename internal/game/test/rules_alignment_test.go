@@ -87,9 +87,9 @@ func TestBereniceConsumesOnlyMinesInAttackRange(t *testing.T) {
 	}
 }
 
-func TestShinchoRecoveryAndCleanseIncludeEnemies(t *testing.T) {
+func TestShichoRecoveryAndCleanseIncludeEnemies(t *testing.T) {
 	for _, attack := range []int{1, 2} {
-		s := NewState("shincho", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"shincho"}, {"jude"}})
+		s := NewState("shicho", [2]Player{{ID: "a"}, {ID: "b"}}, [2][]string{{"shicho"}, {"jude"}})
 		s.TurnPlayerID = "a"
 		s.Characters[0].Position = Position{3, 2}
 		s.Characters[1].Position = Position{4, 2}

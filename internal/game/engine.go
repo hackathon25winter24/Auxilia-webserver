@@ -435,7 +435,8 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		}
 		if chance := passiveFor(d.ID).ExtraAttackChance; chance > 0 && !same && s.Characters[j].HP > 0 && s.roll(i, j, "過量使用", chance+s.passiveBoost(i)) {
 			// 追撃から追撃は発動しない。追加攻撃のデバフは独立判定。
-			s.Characters[j].HP = clamp(s.Characters[j].HP-power, 0, s.Characters[j].MaxHP)
+			extraPower := power * passiveFor(d.ID).ExtraAttackDamagePercent / 100
+			s.Characters[j].HP = clamp(s.Characters[j].HP-extraPower, 0, s.Characters[j].MaxHP)
 			if a.Effect != "" && s.roll(i, j, a.Effect+"追撃", a.EffectChance) {
 				s.addEffect(j, a.Effect)
 			}
@@ -451,7 +452,7 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	if d.ID == "suima" && !s.Characters[i].Wriggling {
 		if c.AttackIndex == 0 {
 			for j := range s.Characters {
-				if s.Characters[j].DefinitionID == "shincho" && s.Characters[j].HP > 0 {
+				if s.Characters[j].DefinitionID == "shicho" && s.Characters[j].HP > 0 {
 					s.Characters[j].HP = max(0, s.Characters[j].HP-40)
 					affected++
 				}
@@ -707,7 +708,7 @@ func (s *State) checkWinner() {
 	// 撃破・毒・地雷などの解決後、勝敗を決める前に一度だけ復活する。
 	for i := range s.Characters {
 		c := &s.Characters[i]
-		if c.DefinitionID == "wellbulus" && c.HP <= 0 && !c.ReviveUsed {
+		if c.DefinitionID == "verbulus" && c.HP <= 0 && !c.ReviveUsed {
 			c.ReviveUsed = true
 			c.Effects = []string{}
 			c.HP = min(c.MaxHP, 50+s.passiveBoost(i))
