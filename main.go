@@ -24,6 +24,9 @@ func main() {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, map[string]string{"status": "ok", "database": "mariadb"})
 	})
+	mux.HandleFunc("POST /api/presence/heartbeat", s.auth(s.heartbeat))
+	mux.HandleFunc("GET /api/presence/count", s.activeCount)
+	mux.HandleFunc("DELETE /api/presence", s.auth(s.leavePresence))
 	mux.HandleFunc("GET /api/characters", s.characters)
 	mux.HandleFunc("GET /api/character-usage", s.currentCharacterUsage)
 	mux.HandleFunc("GET /api/character-usage/history", s.characterUsageHistory)
