@@ -269,6 +269,9 @@ func (s *Store) Apply(matchID, guestID, commandID string, apply func(*game.State
 }
 
 func (s *Store) Cleanup(now time.Time) error {
+	if err := s.db.Where("last_seen_at < ?", now.Add(-24*time.Hour)).Delete(&Presence{}).Error; err != nil {
+		return err
+	}
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("created_at < ?", now.Add(-24*time.Hour)).Delete(&ProcessedCommand{}).Error; err != nil {
 			return err
