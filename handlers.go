@@ -32,12 +32,13 @@ type characterResponse struct {
 }
 
 func (s *service) characters(w http.ResponseWriter, r *http.Request) {
-	counts, totalPickCount, err := s.store.CharacterUsageCounts()
+	week, err := s.store.CurrentUsageWeek()
 	if err != nil {
 		serverError(w, err)
 		return
 	}
-	write(w, 200, characterResponses(counts, totalPickCount))
+	w.Header().Set("Cache-Control", "no-store")
+	write(w, 200, characterResponses(week.Counts, week.PlayerPickCount))
 }
 
 func characterResponses(counts map[string]uint64, totalPickCount uint64) []characterResponse {
