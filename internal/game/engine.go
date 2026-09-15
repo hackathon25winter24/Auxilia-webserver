@@ -28,6 +28,7 @@ type Position struct {
 	Y int `json:"y"`
 }
 type Character struct {
+	HangoverUntil  int            `json:"hangoverUntil,omitempty"`
 	UsedSkills     map[string]int `json:"usedSkills,omitempty"`
 	CombatStance   bool           `json:"combatStance,omitempty"`
 	BarrierTurn    int            `json:"barrierTurn,omitempty"`
@@ -367,6 +368,15 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 	if d.ID == "liberette" && c.AttackIndex == 2 && s.hasBuff(i) {
 		a.Power += 60
 	}
+	if d.ID == "kasuima" && c.AttackIndex > 0 {
+		seen := map[string]bool{}
+		for _, effect := range s.Characters[i].Effects {
+			if isDebuff(effect) {
+				seen[effect] = true
+			}
+		}
+		a.Power += len(seen) * 10
+	}
 	affected := 0
 	if d.ID == "suima" && !s.Characters[i].Wriggling && c.AttackIndex == 1 {
 		for _, effect := range []string{"俊足", "威力上昇"} {
@@ -380,8 +390,9 @@ func (s *State) ApplyAttack(playerID string, c Command) error {
 		if !s.hasEffect(i, "威力上昇") {
 			s.Characters[i].Effects = append(s.Characters[i].Effects, "威力上昇")
 		}
-		s.Characters[i].DrankTurn = s.Turn
-		s.Characters[i].HangoverTurn = s.Turn + 2
+		s.Characters[i].DrankTurn = s.Turn + 2
+		s.Characters[i].HangoverTurn = s.Turn + 4
+		s.Characters[i].HangoverUntil = s.Turn + 6
 	}
 	var pushed []int
 	// 地雷はダメージ計算前にまとめて処理し、全対象に同じ加算値を使う。

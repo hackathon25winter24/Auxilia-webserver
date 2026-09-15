@@ -230,12 +230,14 @@ func (s *State) processTurnEnd(playerID string) {
 					temporary = true
 				}
 			}
-			if !temporary && effect != "麻痺" && effect != "二日酔い" && !(effect == "威力上昇" && c.DrankTurn > 0) {
+			if !temporary && effect != "麻痺" && !(effect == "二日酔い" && s.Turn >= c.HangoverUntil) && !(effect == "威力上昇" && c.DrankTurn > 0 && s.Turn >= c.DrankTurn) {
 				effects = append(effects, effect)
 			}
 		}
 		c.Effects = effects
-		c.DrankTurn = 0
+		if s.Turn >= c.DrankTurn {
+			c.DrankTurn = 0
+		}
 		c.TemporaryBuffs = nil
 		if c.DefinitionID == "suima" {
 			c.Wriggling = !c.Wriggling
