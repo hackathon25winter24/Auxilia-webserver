@@ -49,7 +49,7 @@ func atk(name string, cost, power int, target string, pattern []Position) Attack
 
 var adjacent = p(Position{1, 0})
 var Definitions = []CharacterDefinition{
-	{ID: "suima", Name: "睡魔", Image: "suima_mini.png", Portrait: "suima.png", MaxHP: 160, MoveCost: 10, MoveRange: 1,
+	{ID: "suima", Name: "睡魔", Image: "Suima_mini.png", Portrait: "Suima.png", MaxHP: 160, MoveCost: 10, MoveRange: 1,
 		Attacks: [3]AttackDefinition{
 			func() AttackDefinition {
 				a := atk("進捗を錬成", 20, 30, "enemy", p(Position{1, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}))
@@ -81,7 +81,7 @@ var Definitions = []CharacterDefinition{
 			}(),
 			atk("一旦寝るか", 15, -50, "ally", p(Position{0, 0})),
 		}},
-	{ID: "kasuima", Name: "カスイマ", Image: "kasuima_mini.png", Portrait: "kasuima.png", MaxHP: 150, MoveCost: 15, MoveRange: 1, Attacks: [3]AttackDefinition{
+	{ID: "kasuima", Name: "カスイマ", Image: "Kasuima_mini.png", Portrait: "Kasuima.png", MaxHP: 150, MoveCost: 15, MoveRange: 1, Attacks: [3]AttackDefinition{
 		func() AttackDefinition {
 			a := atk("酒", 10, 0, "ally", p(Position{0, 0}))
 			a.Description = "自身に自分の手番2回分の威力上昇を付与。終了後、次の自分の手番から2回分の二日酔い（攻撃力20%低下、移動・攻撃コスト各5増加）を付与する。"
@@ -195,7 +195,7 @@ var Definitions = []CharacterDefinition{
 	}(), func() AttackDefinition {
 		a := atk("拡散型毒ガス", 20, 20, "enemy", p(Position{1, 0}, Position{2, -1}, Position{2, 0}, Position{2, 1}, Position{3, 0}))
 		a.Effect = "毒"
-		a.EffectChance = 80
+		a.EffectChance = 100
 		return a
 	}(), atk("活性化ガス", 20, -30, "ally", p(Position{0, 0}))}},
 	{ID: "louise", Name: "ルイース", Image: "Louise_mini.png", Portrait: "Louise.png", MaxHP: 100, MoveCost: 5, MoveRange: 1,

@@ -27,7 +27,7 @@ func TestCharacterDefinitionsMatchCharacterSpec(t *testing.T) {
 		"chiyo":    {150, 5, [3]attackNumbers{{10, 20, 0}, {20, 60, 50}, {50, 220, 0}}},
 		"shicho":   {80, 15, [3]attackNumbers{{20, 240, 0}, {10, -40, 0}, {10, 0, 0}}},
 		"zina":     {200, 6, [3]attackNumbers{{20, 30, 40}, {20, 20, 80}, {30, 60, 0}}},
-		"dana":     {200, 9, [3]attackNumbers{{10, 0, 0}, {20, 20, 80}, {20, -30, 0}}},
+		"dana":     {200, 9, [3]attackNumbers{{10, 0, 0}, {20, 20, 100}, {20, -30, 0}}},
 	}
 
 	if len(Definitions) != len(want) {
