@@ -52,7 +52,7 @@ var Definitions = []CharacterDefinition{
 	{ID: "suima", Name: "睡魔", Image: "suima_mini.png", Portrait: "suima.png", MaxHP: 160, MoveCost: 10, MoveRange: 1,
 		Attacks: [3]AttackDefinition{
 			func() AttackDefinition {
-				a := atk("進捗を錬成", 20, 20, "enemy", p(Position{1, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}))
+				a := atk("進捗を錬成", 20, 30, "enemy", p(Position{1, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}))
 				a.Description = "範囲への攻撃に加え、敵味方すべての新著久無子に範囲を問わず40ダメージ。"
 				return a
 			}(),
@@ -62,14 +62,14 @@ var Definitions = []CharacterDefinition{
 				return a
 			}(),
 			func() AttackDefinition {
-				a := atk("それはよくないとされている", 20, 10, "enemy", p(Position{2, -1}, Position{3, -1}, Position{2, 0}, Position{3, 0}, Position{2, 1}, Position{3, 1}))
+				a := atk("それはよくないとされている", 20, 10, "enemy", p(Position{2, -1}, Position{3, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{2, 1}, Position{3, 1}))
 				a.ClearBuffs = true
 				a.Description = "範囲内の敵のバフと、敵が設置したマスを取り除く。"
 				return a
 			}(),
 		}, AlternateAttacks: &[3]AttackDefinition{
 			func() AttackDefinition {
-				a := atk(":wara:", 20, 0, "enemy", p(Position{1, -1}, Position{2, -1}, Position{3, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{1, 1}, Position{2, 1}, Position{3, 1}))
+				a := atk(":wara:", 20, 10, "enemy", p(Position{1, -1}, Position{2, -1}, Position{3, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{1, 1}, Position{2, 1}, Position{3, 1}))
 				a.Effect = "鈍化"
 				a.EffectChance = 100
 				return a
@@ -79,17 +79,17 @@ var Definitions = []CharacterDefinition{
 				a.ClearDebuffs = true
 				return a
 			}(),
-			atk("一旦寝るか", 15, -40, "ally", p(Position{0, 0})),
+			atk("一旦寝るか", 15, -50, "ally", p(Position{0, 0})),
 		}},
 	{ID: "kasuima", Name: "カスイマ", Image: "kasuima_mini.png", Portrait: "kasuima.png", MaxHP: 150, MoveCost: 15, MoveRange: 1, Attacks: [3]AttackDefinition{
 		func() AttackDefinition {
 			a := atk("酒", 10, 0, "ally", p(Position{0, 0}))
-			a.Description = "自身にこのターン中、威力上昇を付与。次の自分のターン中、二日酔い（攻撃力20%低下、移動・攻撃コスト各5増加）を付与する。"
+			a.Description = "自身に自分の手番2回分の威力上昇を付与。終了後、次の自分の手番から2回分の二日酔い（攻撃力20%低下、移動・攻撃コスト各5増加）を付与する。"
 			return a
 		}(),
-		atk("煙草", 10, 15, "enemy", p(Position{2, -1}, Position{2, 0}, Position{2, 1})),
+		atk("煙草", 10, 30, "enemy", p(Position{2, -1}, Position{3, -1}, Position{2, 0}, Position{2, 1}, Position{3, 1})),
 		func() AttackDefinition {
-			a := atk("Reverse", 20, 5, "enemy", p(Position{1, -1}, Position{2, -1}, Position{1, 0}, Position{2, 0}, Position{1, 1}, Position{2, 1}))
+			a := atk("Reverse", 20, 10, "enemy", p(Position{1, -1}, Position{2, -1}, Position{1, 0}, Position{2, 0}, Position{3, 0}, Position{1, 1}, Position{2, 1}))
 			a.Description = "命中したキャラを攻撃方向に2マス押し戻す。移動先が無効なら1マス、そこも無効なら移動しない。"
 			return a
 		}(),
@@ -224,7 +224,7 @@ var passiveDefinitions = map[string][2]string{
 	"louise":    {"援護の舞踏", "周囲1マス以内の自身以外の味方のパッシブ効果値を20上昇させる。"},
 	"liberette": {"スペードのエース", "自分のターン開始時、生存中の敵味方全員（自身を含む）から1人を選び、ランダムなバフまたはデバフを1つ付与する。"},
 	"suima":     {"やる気の波", "自分のターンごとに活動状態とくねくね状態を交互に繰り返す。"},
-	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。"},
+	"kasuima":   {"カス", "自身の「酒」による威力上昇以外のバフを受けない。自身のデバフ1種類につき「煙草」と「Reverse」のダメージが10上昇する。"},
 	"verbulus":  {"輪廻転生", "戦闘中に一度だけ、戦闘不能になったとき全てのバフ・デバフを解除し、HP50で復活する。"},
 	"sophie":    {"範囲支援 sowing～播種～", "戦闘開始時に味方全体に俊足を与え、戦闘離脱時に敵全体に鈍足を与える。"},
 	"jude":      {"受け身", "自身が受けるダメージを20軽減する。"},
